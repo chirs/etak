@@ -3,12 +3,9 @@
 
 ## Refactor index.html
 
-- [ ] Split the single `src/index.html` into separate HTML, CSS, and JS files
-- [ ] Extract the pure geometry/scoring core (`bearing`, `houseOf`, `boundariesFor`, `scoreFor`) into its own module
-- [ ] Single source of truth for the palette — drive canvas colors from the `:root` custom properties instead of duplicated hex literals
-
-> Currently everything lives in one IIFE, and the canvas hard-codes hex values that shadow the
-> CSS variables. Both have to be kept in sync by hand.
+- [x] Split the single `src/index.html` into separate HTML, CSS, and JS files (`index.html`, `styles.css`, `core.js`, `app.js`)
+- [x] Extract the pure geometry/scoring core (`bearing`, `houseOf`, `boundariesFor`, `scoreFor`) into its own module — `core.js`, exposed as `EtakCore`
+- [x] Single source of truth for the palette — canvas colors now read from the `:root` custom properties via the `PAL` object in `app.js`
 
 
 ## Gather etak documents

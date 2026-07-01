@@ -4,12 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Etak is a single-file, zero-dependency interactive canvas visualization of Micronesian
-star-path ("etak") navigation. The entire app — HTML, CSS, and JS — lives in `src/index.html`.
-There is no build step, package manager, test suite, or git repository.
+Etak is a zero-dependency interactive canvas visualization of Micronesian star-path ("etak")
+navigation. There is no build step, package manager, or test suite. The app is four files in `src/`:
 
-To run it: open `src/index.html` in a browser (or serve the directory statically). Fonts load
-from Google Fonts, so a network connection is needed for the intended typography.
+- `index.html` — markup only; links the stylesheet and the two scripts (`core.js` then `app.js`).
+- `styles.css` — all CSS, including the `:root` color tokens (the single source of truth for the palette).
+- `core.js` — the pure geometry/scoring core, exposed as the global `EtakCore` (no DOM, no canvas).
+- `app.js` — everything else: puzzle/sandbox state, canvas rendering, UI wiring, the rAF loop.
+
+Scripts are plain classic `<script>` tags (not ES modules) so `src/index.html` still works opened
+directly over `file://`. Load order matters: `core.js` defines `EtakCore` before `app.js` consumes it.
+
+To run it: open `src/index.html` in a browser, or serve the directory (`python3 -m http.server
+--directory src`). Fonts load from Google Fonts, so a network connection is needed for the intended typography.
 
 ## Domain concepts (needed to make sense of the code)
 
@@ -28,15 +35,18 @@ Two **modes**:
 - **PUZZLE**: 4 generated candidate islands; pick the one that best segments the voyage. Score panel + chooser visible.
 - **SANDBOX**: one draggable reference island; free exploration.
 
-## Architecture (all in the one IIFE in `src/index.html`)
+## Architecture
 
-The code is organized top-to-bottom into commented sections. Key pieces and their coupling:
+`core.js` is one pure module (`EtakCore`); `app.js` is one IIFE organized top-to-bottom into
+commented sections. Key pieces and their coupling:
 
-- **Geometry / scoring core** (`bearing`, `houseOf`, `boundariesFor`, `scoreFor`): pure functions
-  over `A`, `B`, `ref`. `boundariesFor` samples the leg at N=2000 steps and records the `t`
-  values where the star house changes — these boundary `t`s drive both the ticks drawn on the
-  course and the score. `scoreFor` combines *count fitness* (gaussian around `SWEET=6` etaks) and
-  *evenness* (1 − coefficient of variation of segment lengths), 50/50, scaled to 100.
+- **Geometry / scoring core** (`core.js`: `bearing`, `houseOf`, `boundariesFor`, `scoreFor`, plus
+  `HOUSE`, `SWEET`, `lerp`, `verdictText`): pure functions over `A`, `B`, `ref`, with no DOM or
+  canvas dependency. `boundariesFor` samples the leg at N=2000 steps and records the `t` values
+  where the star house changes — these boundary `t`s drive both the ticks drawn on the course and
+  the score. `scoreFor` combines *count fitness* (gaussian around `SWEET=6` etaks) and *evenness*
+  (1 − coefficient of variation of segment lengths), 50/50, scaled to 100. `app.js` pulls what it
+  needs from `EtakCore` via a destructuring line at the top.
 - **Puzzle generation** (`makePuzzle`): deterministic LCG (`rnd`, seeded from `Date.now()`).
   Deliberately builds one strong candidate, two traps (in-line-with-course → too few etaks;
   too-close-abeam → confetti of tiny etaks), and one middling. Then shuffles.
@@ -51,8 +61,13 @@ The code is organized top-to-bottom into commented sections. Key pieces and thei
 
 ## Editing conventions here
 
-- It's one file; DOM ids/classes in the top HTML+CSS are wired to `getElementById` calls at the
-  bottom. Changing an id means updating both places.
-- Colors are CSS custom properties in `:root`, but the canvas drawing code uses hard-coded hex
-  literals (canvas can't read CSS vars) — many duplicate the `:root` values. Keep them in sync by hand.
+- DOM ids/classes live in `index.html`/`styles.css` and are wired to `getElementById` calls in
+  `app.js`. Changing an id means updating both places.
+- **Palette single source of truth**: all colors are CSS custom properties in `:root` (`styles.css`),
+  including canvas-only tokens (`--course`, `--tick`, `--rose-ring`, `--rose-minor`, `--ghost`,
+  `--island`, `--ref-fill`, `--dim`). `app.js` reads them once via `getComputedStyle` into the `PAL`
+  object; canvas code references `PAL.*` (with `hexA(hex, alpha)` or a `'88'`-style suffix for
+  translucency). Add or change a color in `:root`, not in the drawing code.
+- `worldTransform` (in `app.js`) applies the frame crossfade; `screenToWorld` is its inverse and is
+  used for sandbox dragging — if you change one, update the other.
 - `reduceMotion` (prefers-reduced-motion) gates star twinkle and frame-ease speed; preserve it.
