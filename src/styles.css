@@ -8,7 +8,7 @@
   /* canvas-only tokens (read into the JS palette; keep these the single source) */
   --course:#285060; --tick:#3a4c66; --rose-ring:#33445e; --rose-minor:#4a5b76;
   --ghost:#243247; --island:#2a3a4f; --ref-fill:#4a3a22;
-  --land:#1a2536; --coast:#33465f;
+  --land:#1a2536; --coast:#33465f; --range:#2f4a58;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -76,7 +76,12 @@ h1{font-family:'Marcellus',serif;font-weight:400;font-size:clamp(20px,3.2vw,32px
   transition:border-color .2s}
 .bar button.icon:hover{border-color:var(--amber)}
 .bar button.icon:focus-visible{outline:2px solid var(--amber)}
+.scrubwrap{position:relative;flex:1;display:flex;align-items:center}
 #scrub{flex:1}
+/* etak boundary ticks overlaid on the scrub track; 7px inset ≈ half the thumb width */
+.etakstrip{position:absolute;left:7px;right:7px;top:50%;height:0;pointer-events:none}
+.etakstrip i{position:absolute;top:-5px;width:1px;height:10px;background:var(--tick);transform:translateX(-50%)}
+.etakstrip i.past{background:var(--amber)}
 input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer}
 input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line);border-radius:1px}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;

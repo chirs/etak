@@ -54,9 +54,9 @@ The full 32-point compass (Carolinian names + azimuths) is already transcribed i
 
 ## Show the etak stages
 
-- [ ] Etak strip on the scrubber — mark the boundary `t`s along the progress bar so segmentation
+- [x] Etak strip on the scrubber — mark the boundary `t`s along the progress bar so segmentation
       evenness is legible at a glance (the scrubber becomes the lesson)
-- [ ] Bird/sighting range rings — faint ~18 mi rings around home and destination on the chart, so
+- [x] Bird/sighting range rings — faint ~18 mi rings around home and destination on the chart, so
       "etak of birds" / "of sighting" in the readout visibly correspond to something physical
 
 

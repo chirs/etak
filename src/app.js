@@ -19,6 +19,7 @@ const PAL = {
   course:cv('--course'), tick:cv('--tick'), roseRing:cv('--rose-ring'),
   roseMinor:cv('--rose-minor'), ghost:cv('--ghost'), island:cv('--island'),
   refFill:cv('--ref-fill'), land:cv('--land'), coast:cv('--coast'),
+  range:cv('--range'),
 };
 
 // ---------- tuning constants ----------
@@ -29,6 +30,7 @@ const CFG={
   trailN:14, trailStep:0.02,    // navigator drift trails: dot count + t spacing per dot
   playRate:0.03,                // voyage fraction per second at speed 1
   refHitR:26,                   // sandbox reference drag hit radius, screen px
+  birdsNm:16.2,                 // "etak of birds" ring radius, ~30 km (docs/sources.md §2)
   zoomStep:1.12,                // wheel zoom factor per notch
   fEase:2.6, fEaseReduced:8,    // frame-crossfade speed (reduced motion: near-instant)
 };
@@ -90,6 +92,7 @@ function recompute(){
   boundaries=live?live.boundaries:[];
   legNm=gcDistNm(A,B);
   updateScorePanel();
+  buildEtakStrip();
 }
 
 // ---------- puzzle (real passages) ----------
@@ -219,6 +222,15 @@ function drawCoast(v){
   ctx.strokeStyle=PAL.coast;ctx.lineWidth=0.6/v.Z;ctx.lineJoin='round';ctx.stroke(landPath);
 }
 
+// "etak of birds" range rings around home + destination (seabird feeding range)
+function drawRangeRings(v){
+  ctx.strokeStyle=PAL.range;ctx.lineWidth=1/v.Z;ctx.setLineDash([3/v.Z,4/v.Z]);
+  for(const I of [A,B]){const w=project(I);
+    const ry=CFG.birdsNm/60, rx=ry/Math.cos(I.lat*Math.PI/180);   // 1° lat = 60 nm
+    ctx.beginPath();ctx.ellipse(w.x,w.y,rx,ry,0,0,7);ctx.stroke();}
+  ctx.setLineDash([]);
+}
+
 // course line + etak ticks (perpendicular to the leg)
 function drawCourse(v,Aw,Bw){
   ctx.strokeStyle=PAL.course+'aa';ctx.lineWidth=1.5/v.Z;ctx.setLineDash([6/v.Z,7/v.Z]);
@@ -295,6 +307,7 @@ function draw(){
   // ---- world-space pass ----
   ctx.save();applyTransform(v);
   drawCoast(v);
+  drawRangeRings(v);
   drawCourse(v,Aw,Bw);
   drawTrails(v,Pw,Aw);
   drawRose(Pw,v,refDeg==null?-1:houseOf(refDeg));
@@ -318,6 +331,8 @@ function updateReadout(refDeg){
     return;
   }
   const seg=boundaries.filter(b=>b<t).length+1;
+  if(seg!==lastSeg){lastSeg=seg;
+    [...etakStrip.children].forEach((el,i)=>el.classList.toggle('past',boundaries[i]<t));}
   const total=boundaries.length+1;
   const segName=total>1&&seg===total?' — etak of sighting':
                 total>2&&seg===total-1?' — etak of birds':'';
@@ -326,6 +341,16 @@ function updateReadout(refDeg){
     `bearing to reference <b>${refDeg.toFixed(1).padStart(5,'0')}°</b> · house <b>${houseOf(refDeg)+1}</b>/32<br>`+
     `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>`;
   if(html!==lastReadout){lastReadout=html;readoutEl.innerHTML=html;}
+}
+
+// etak boundary ticks on the scrubber; rebuilt only when the boundaries change
+const etakStrip=document.getElementById('etakStrip');
+let stripKey='',lastSeg=-1;
+function buildEtakStrip(){
+  const key=boundaries.map(b=>b.toFixed(4)).join();
+  if(key===stripKey)return;
+  stripKey=key;lastSeg=-1;
+  etakStrip.innerHTML=boundaries.map(b=>`<i style="left:${(b*100).toFixed(2)}%"></i>`).join('');
 }
 
 const scoreBig=document.getElementById('scoreBig');
