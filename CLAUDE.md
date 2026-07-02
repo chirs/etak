@@ -5,15 +5,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Etak is a zero-dependency interactive canvas visualization of Micronesian star-path ("etak")
-navigation. There is no build step, package manager, or test suite. The app is four files in `src/`:
+navigation, rendered over a real, zoomable chart of the Pacific. There is no build step or
+package manager at runtime. The app is these files in `src/`:
 
-- `index.html` — markup only; links the stylesheet and the two scripts (`core.js` then `app.js`).
+- `index.html` — markup only; links the stylesheet and the scripts, in load order.
 - `styles.css` — all CSS, including the `:root` color tokens (the single source of truth for the palette).
-- `core.js` — the pure geometry/scoring core, exposed as the global `EtakCore` (no DOM, no canvas).
-- `app.js` — everything else: puzzle/sandbox state, canvas rendering, UI wiring, the rAF loop.
+- `core.js` — the pure **spherical** geometry/scoring core, exposed as the global `EtakCore`
+  (no DOM, no canvas, no projection — just great-circle math over `{lat,lon}`).
+- `map-data.js` — **generated** Pacific coastlines (`const PACIFIC_MAP`); do not edit by hand.
+- `passages.js` — hand-authored content: the `ETAK_ISLANDS` gazetteer and `ETAK_PASSAGES` list.
+- `app.js` — everything else: projection, camera, puzzle/sandbox state, canvas rendering, UI wiring, the rAF loop.
+
+`tools/build_map.py` regenerates `map-data.js` from Natural Earth 50m land (stdlib-only, run
+once: `python3 tools/build_map.py`). `tests/core.test.mjs` covers the core (`node --test 'tests/**/*.test.mjs'`).
 
 Scripts are plain classic `<script>` tags (not ES modules) so `src/index.html` still works opened
-directly over `file://`. Load order matters: `core.js` defines `EtakCore` before `app.js` consumes it.
+directly over `file://`. Load order matters: `core.js` → `map-data.js` → `passages.js` → `app.js`
+(`app.js` consumes all three globals). `core.js`/`map-data.js`/`passages.js` also expose a
+`module.exports` bridge so Node tests can `require` them; this is inert in the browser.
 
 To run it: open `src/index.html` in a browser, or serve the directory (`python3 -m http.server
 --directory src`). Fonts load from Google Fonts, so a network connection is needed for the intended typography.
@@ -32,31 +41,46 @@ Two **reference frames** render the *same* voyage, cross-faded by `f` (0=chart, 
   the Etak mental model where the reference island "moves."
 
 Two **modes**:
-- **PUZZLE**: 4 generated candidate islands; pick the one that best segments the voyage. Score panel + chooser visible.
-- **SANDBOX**: one draggable reference island; free exploration.
+- **PUZZLE**: a documented real passage with 4 real candidate islands; pick the one that best
+  segments the voyage. Score panel + chooser visible. NEW VOYAGE cycles `ETAK_PASSAGES`.
+- **SANDBOX**: one draggable *hypothetical* reference island; free exploration.
+
+`A`, `B`, `C` are `{lat,lon,name}` points. All navigation math is spherical (great-circle), so
+bearings and etaks are correct regardless of the render projection.
 
 ## Architecture
 
 `core.js` is one pure module (`EtakCore`); `app.js` is one IIFE organized top-to-bottom into
 commented sections. Key pieces and their coupling:
 
-- **Geometry / scoring core** (`core.js`: `bearing`, `houseOf`, `boundariesFor`, `scoreFor`, plus
-  `HOUSE`, `SWEET`, `lerp`, `verdictText`): pure functions over `A`, `B`, `ref`, with no DOM or
-  canvas dependency. `boundariesFor` samples the leg at N=2000 steps and records the `t` values
-  where the star house changes — these boundary `t`s drive both the ticks drawn on the course and
+- **Geometry / scoring core** (`core.js`: `gcBearing`, `gcDistNm`, `gcInterp`, `houseOf`,
+  `boundariesFor`, `scoreFor`, plus `HOUSE`, `SWEET`, `verdictText`): pure spherical functions over
+  `{lat,lon}` points, with no DOM/canvas/projection dependency. `boundariesFor` samples the leg
+  (great-circle interpolated) at N=2000 steps and records the `t` values where the star house of
+  the canoe→ref bearing changes — these boundary `t`s drive both the ticks drawn on the course and
   the score. `scoreFor` combines *count fitness* (gaussian around `SWEET=6` etaks) and *evenness*
   (1 − coefficient of variation of segment lengths), 50/50, scaled to 100. `app.js` pulls what it
   needs from `EtakCore` via a destructuring line at the top.
-- **Puzzle generation** (`makePuzzle`): deterministic LCG (`rnd`, seeded from `Date.now()`).
-  Deliberately builds one strong candidate, two traps (in-line-with-course → too few etaks;
-  too-close-abeam → confetti of tiny etaks), and one middling. Then shuffles.
-- **State**: `A,B,C` are the *active* leg/reference; `boundaries` and `live` (the current score
-  object) are recomputed by `recompute()` whenever the reference changes (choice or drag).
-  `t` = voyage progress 0..1; `f` = frame crossfade; `mode`.
-- **Rendering** (`draw` → `worldTransform`, `drawIslandShape`, `drawRose`): a single canvas
-  redrawn each rAF frame. `worldTransform` applies the frame crossfade (translate/rotate/scale)
-  so all world-space drawing is frame-agnostic. `screenToWorld` is its inverse, used only for
-  sandbox dragging — **if you change `worldTransform`, update `screenToWorld` to match.**
+- **Passages / puzzle** (`makePuzzle`): loads `ETAK_PASSAGES[passageIndex]` — a real leg and four
+  real candidate islands — and scores each candidate live with the core. Nothing is hand-tuned;
+  the candidate *sets* are curated so each puzzle has a clear (or interestingly ambiguous) answer
+  plus instructive traps (e.g. Satawal sits on the Puluwat→Lamotrek course line → its bearing
+  barely moves). Island coordinates live in `ETAK_ISLANDS` (`passages.js`), sourced from
+  `docs/sources.md` §3.
+- **Projection + camera** (`app.js`): `project({lat,lon})→{x,y}` is plain equirectangular in a
+  Pacific-centered lon360 space (`x=lon360`, `y=−lat`); `unproject` inverts it. The camera
+  (`cam.{cx,cy,zoom}`) supports wheel-zoom-to-cursor and drag-pan (chart frame). Coastlines are
+  built once into a world-space `Path2D` from `PACIFIC_MAP.polys`.
+- **State**: `A,B,C` are the *active* leg/reference (`{lat,lon,name}`); `boundaries` and `live`
+  (the current score object) are recomputed by `recompute()` whenever the reference changes
+  (choice or drag). `t` = voyage progress 0..1; `f` = frame crossfade; `mode`.
+- **Rendering** (`draw`): a single canvas redrawn each rAF frame. `viewParams()` is the **single
+  source** for the view transform (blends the camera view toward the canoe-centered −90° navigator
+  view by `f`); `applyTransform`, `worldToScreen`, and `screenToWorld` all derive from it and must
+  stay mutual inverses — **change one, change all.** Geometry (coastlines, course, ticks, rose,
+  bearing lines, trails, canoe) draws under the world transform; island markers, labels, and rose
+  cardinal labels draw in a screen-space pass (via `worldToScreen`) so text stays crisp and upright
+  at any zoom. Screen-constant sizes are `pixels / v.Z` in world units.
 - **Loop**: `requestAnimationFrame(loop)` advances `t` when playing and eases `f` toward `fTarget`.
 
 ## Editing conventions here
@@ -65,9 +89,11 @@ commented sections. Key pieces and their coupling:
   `app.js`. Changing an id means updating both places.
 - **Palette single source of truth**: all colors are CSS custom properties in `:root` (`styles.css`),
   including canvas-only tokens (`--course`, `--tick`, `--rose-ring`, `--rose-minor`, `--ghost`,
-  `--island`, `--ref-fill`, `--dim`). `app.js` reads them once via `getComputedStyle` into the `PAL`
+  `--island`, `--ref-fill`, `--dim`, `--land`, `--coast`). `app.js` reads them once via `getComputedStyle` into the `PAL`
   object; canvas code references `PAL.*` (with `hexA(hex, alpha)` or a `'88'`-style suffix for
   translucency). Add or change a color in `:root`, not in the drawing code.
-- `worldTransform` (in `app.js`) applies the frame crossfade; `screenToWorld` is its inverse and is
-  used for sandbox dragging — if you change one, update the other.
+- `viewParams()` (in `app.js`) is the one place the view transform is defined; `applyTransform`,
+  `worldToScreen`, and `screenToWorld` all derive from it and must stay mutual inverses.
+- Regenerate `map-data.js` only via `tools/build_map.py`; never hand-edit it. To widen/shift the
+  chart, change the bounds/tolerance constants at the top of that script and re-run.
 - `reduceMotion` (prefers-reduced-motion) gates star twinkle and frame-ease speed; preserve it.

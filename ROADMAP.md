@@ -24,6 +24,10 @@ Findings collected in [`docs/sources.md`](docs/sources.md) (fact-checked, confid
 
 ## Use real maps
 
-- [ ] Replace the procedurally generated blobs with actual Caroline Islands geography
-- [ ] Real inter-island bearings and distances for a chosen sailing passage (e.g. Puluwat → Satawal)
-- [ ] Overlay the sidereal compass on a real chart so the etaks land on true reference islands
+- [x] Replace the procedurally generated blobs with actual Caroline Islands geography
+      (`src/passages.js` gazetteer; Natural Earth coastlines in `src/map-data.js`)
+- [x] Real inter-island bearings and distances for chosen sailing passages — the core is now
+      spherical (great-circle) and puzzle mode runs documented legs (Puluwat→Chuuk with Pisaras,
+      Satawal→Lamotrek, Puluwat→Lamotrek)
+- [x] Overlay the sidereal compass on a real chart so the etaks land on true reference islands
+      — the app draws a zoomable whole-Pacific chart with the rose over the live canoe position
