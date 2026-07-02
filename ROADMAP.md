@@ -104,3 +104,28 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
       needs new gazetteer coordinates sourced into `docs/sources.md` §3, and possibly wider chart
       bounds (`tools/build_map.py` constants + regenerate) — added Pikelot→Saipan (Hipour's 1969
       revival, Lewis *JPS* 79(4) 1970); Saipan was already inside the chart bounds, no regen needed
+
+
+## Second act — from simulator to game
+
+The simulator is built: real chart, real sky, real passages, the settlement story. What's
+missing is a game that makes the player *use* it — right now the puzzle is one multiple-choice
+guess, and the boat view (the whole point) carries no gameplay at all.
+
+- [ ] **Publish** — GitHub Pages serving `src/` so people can actually sail it (site becomes
+      public; enable Pages, no build step needed)
+- [ ] **The blind passage** — the core loop. After choosing a reference island you *sail* it:
+      boat view only — no chart, no scrubber, no progress % — watching the reference caret slip
+      house to house. At unpredictable moments the navigator's question comes: *which etak are
+      we in? how far to landfall?* Scored by error. Makes the island choice consequential (pick
+      the bad reference and you are genuinely lost — the actual lesson) and makes the sky
+      load-bearing.
+- [ ] **The apprenticeship** — wrap the passages in a progression with escalating blindness
+      (first voyage keeps the chart, later ones allow glances, the last is boat-only), ending
+      in a *pwo*-style title. Cheap meta-structure once the blind passage exists.
+- [ ] *Stretch:* **steer by the stars** — at each etak boundary, confirm the heading by picking
+      the right star house from the boat view; wind/leeway drift pushes the canoe off-course and
+      the reference island's bearing is what betrays it (needs a small drift model in the core)
+- [ ] Touch/mobile pass — everything is desktop-first; check story cards, boat-view drag, and
+      the chooser on a phone
+- [ ] Hipparcos/HYG sky deepening (see the item under *View from the boat* above)
