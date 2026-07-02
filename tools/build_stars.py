@@ -25,7 +25,7 @@ OUT = os.path.join(HERE, "..", "src", "stars.js")
 URL = ("https://raw.githubusercontent.com/brettonw/YaleBrightStarCatalog/"
        "master/bsc5-short.json")
 
-MAG_LIMIT = 6.0
+MAG_LIMIT = 8.0  # the whole catalog — BSC tops out at V 7.96
 
 # HR -> (group, carolinian name or None, label_anchor). `group` must equal the
 # base star string in ETAK_COMPASS (docs/sources.md §1); multi-star groups mark
