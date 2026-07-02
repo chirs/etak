@@ -85,6 +85,15 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
       column, so the compass-star HR mapping in `build_stars.py` would carry over)
 
 
+## Onboarding — the settlement story
+
+- [x] Six-beat story mode on the real chart: the Austronesian expansion (out of Taiwan →
+      Marianas → Lapita → the far corners of the triangle) and the westward filling of the
+      Carolines, ending on Hipour's 1969 revival and the hand-off into the puzzle —
+      `ETAK_STORY` (`passages.js`), chronology fact-checked in `docs/sources.md` §4;
+      autoplays on first visit, replayable from the header, SKIP/ESC to exit
+
+
 ## More passages
 
 - [x] Add the near-free legs — the gazetteer already has the islands (e.g. Puluwat→Pikelot,

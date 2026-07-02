@@ -89,6 +89,34 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
 .modeswitch button.active{background:#1a273a;color:var(--starlight)}
 .modeswitch button:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
 
+.storylink{appearance:none;background:none;border:0;padding:0;margin-top:7px;pointer-events:auto;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:#5d6d84;cursor:pointer;transition:color .2s}
+.storylink:hover{color:var(--starlight)}
+.storylink:focus-visible{outline:2px solid var(--amber)}
+
+.storycard{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:6;
+  width:min(560px,calc(100vw - 48px));padding:18px 22px 14px;border:1px solid var(--line);
+  border-radius:12px;background:var(--panel);backdrop-filter:blur(6px);transition:opacity .3s}
+.storycard.hidden{opacity:0;pointer-events:none}
+.storycard .era{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--amber)}
+.storycard h2{font-family:'Marcellus',serif;font-weight:400;font-size:22px;margin:4px 0 6px;
+  color:var(--starlight);letter-spacing:.03em}
+.storycard p{font-size:13px;line-height:1.65;color:var(--faint);margin:0 0 12px}
+.storycard .row{display:flex;justify-content:space-between;align-items:center}
+.storycard .row button{appearance:none;font-family:'IBM Plex Mono',monospace;cursor:pointer;transition:border-color .2s,color .2s}
+#storySkip{background:none;border:0;padding:0;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:#5d6d84}
+#storySkip:hover{color:var(--starlight)}
+#storyNext{border:1px solid var(--amber);background:none;color:var(--amber);
+  font-size:12px;padding:8px 18px;border-radius:8px}
+#storyNext:hover{background:#1a273a}
+#storyNext:focus-visible,#storySkip:focus-visible{outline:2px solid var(--amber)}
+
+.modeswitch.hidden,.frames.hidden,.bar.hidden,.readout.hidden{opacity:0;pointer-events:none}
+.modeswitch,.frames,.bar,.readout{transition:opacity .3s}
+
 .departwrap{position:fixed;right:24px;bottom:138px;z-index:4;display:flex;align-items:center;gap:8px;
   font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5d6d84;
   letter-spacing:.14em;text-transform:uppercase;transition:opacity .3s}

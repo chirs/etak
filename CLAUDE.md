@@ -64,6 +64,13 @@ Two **modes**:
   segments the voyage. Score panel + chooser visible. NEW VOYAGE cycles `ETAK_PASSAGES`.
 - **SANDBOX**: one draggable *hypothetical* reference island; free exploration.
 
+A **story mode** overlays either: a six-beat walkthrough of the settlement of the Pacific
+(`ETAK_STORY` in `passages.js`; chronology sourced in `docs/sources.md` §4). While `story` is
+set, `draw()` swaps the voyage layers for great-circle migration arcs over the coastlines
+(`drawStory`/`drawStoryLabels`) and `loop()` eases the camera toward `camTarget` beat frames.
+Autoplays on first visit (localStorage `etakStorySeen`), replays from the header button,
+exits via SKIP/ESC or the final SAIL hand-off into the puzzle.
+
 `A`, `B`, `C` are `{lat,lon,name}` points. All navigation math is spherical (great-circle), so
 bearings and etaks are correct regardless of the render projection.
 

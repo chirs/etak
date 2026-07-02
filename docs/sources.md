@@ -178,6 +178,41 @@ cleanest authentic replacement for the generated puzzle — real endpoints, a re
 and a documented star course.
 
 
+## 4. The settlement of the Pacific (story-mode chronology)
+
+Dates used by `ETAK_STORY` (`src/passages.js`). All are ranges rounded for on-chart labels;
+the archaeology moves — prefer the primary citations when updating.
+
+- **[verified] Out of Taiwan, ~3000–2000 BCE:** Austronesian Neolithic dispersal Taiwan → Luzon
+  (Cagayan valley ~2200–2000 BCE) → island Southeast Asia. (Bellwood, *First Islanders*, 2017.)
+- **[verified] Marianas, ~1500 BCE:** the first crossing into Remote Oceania — ~2,000+ km of open
+  water from the Philippines, the longest sea passage humanity had made to that date. Initial
+  settlement horizon at 1500 BC (Carson, *First Settlement of Remote Oceania*, Springer 2014;
+  Petchey et al., *Radiocarbon* 59(6), 2017; Hung et al., *Antiquity* 85, 2011).
+- **[verified] Lapita into Remote Oceania, ~1300–850 BCE:** Bismarcks (~1350 BCE) → past the
+  Solomons → Vanuatu/New Caledonia (~1000 BCE) → Fiji → **Tonga ~880 BCE** (high-precision U/Th,
+  Burley et al. 2012) → Samoa. First people ever to sail beyond island intervisibility in that
+  ocean. (Sheppard, "Lapita Colonization across the Near/Remote Oceania Boundary," *Current
+  Anthropology* 52(6), 2011.)
+- **[verified] Eastern Micronesia then westward through the Carolines, ~100 BCE–1000 CE:**
+  Marshalls/Kiribati/Pohnpei settled ~2000 BP from the Lapita sphere to the southeast; Chuukic
+  speakers then spread **westward** through the atolls — Chuuk lagoon (Feefen) ~2nd–1st c. BCE,
+  **Lamotrek by ~1000 CE (possibly ~300 CE)** (Sinoto ed., *Caroline Islands Archaeology*, 1984;
+  Rainbird, *Journal of World Prehistory* 8(3), 1994). Direction matters: the low Carolines were
+  filled from the east, not from the Philippines side.
+- **[verified] East Polynesia, ~1025–1290 CE (short chronology):** Societies ~1025–1120 CE, then
+  one rapid pulse to the far corners — **Hawaiʻi, Rapa Nui ~1200 CE, Aotearoa ~1250 CE**
+  (Wilmshurst, Hunt, Lipo & Anderson, *PNAS* 108(5), 2011). Ends the longest colonization arc in
+  human history.
+- **[caution] The "long pause" (~1,800 yr between Samoa and the Societies) is real in the dates
+  but its cause is debated** (wind regimes, canoe technology, demography) — the story card states
+  the pause, not a cause.
+- **[framing note]** The story claims the *expansion happened* and that its descendants preserved
+  the navigational art the app teaches. It does **not** claim etak or the 32-point compass as
+  documented here were the literal instruments of 1000 BCE voyaging — they are attested
+  ethnographically from the 20th-century Carolines (Gladwin; Lewis; Goodenough & Thomas).
+
+
 ## Sources
 
 Primary / academic (prioritize these when transcribing exact names & tables):

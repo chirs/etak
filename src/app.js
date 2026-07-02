@@ -44,6 +44,10 @@ const CFG={
   seaVanish:1.15,               // boat view: sea-grid vanishing point depth, fraction of H
   milkyN:4500,                  // boat view: milky-way dust points, scattered once at load
   lookStep:10,                  // boat view: gaze swing per arrow-key press, degrees
+  storyEase:2.0,                // story mode: camera-flight ease rate (per second)
+  storyArcSec:1.6,              // story mode: seconds for one migration arc to grow
+  storyStagger:0.9,             // story mode: seconds between successive arc starts
+  storyFitFrac:0.78,            // story mode: beats frame into this fraction of the viewport
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -66,20 +70,26 @@ function resize(){
   // east-up rotation maps world lon-extent to screen height, lat-extent to width
   MINZOOM=0.95*Math.min(H/(B0.lonMax-B0.lonMin), W/(B0.latMax-B0.latMin));
   cam.zoom=clamp(cam.zoom,MINZOOM,CFG.maxZoom);
-  if(A&&B) fitLeg();
+  if(story) camTarget=fitPoints(ETAK_STORY[story.beat].fit.map(project),CFG.storyFitFrac);
+  else if(A&&B) fitLeg();
 }
 addEventListener('resize',resize);
+
+// camera frame for a set of projected points (east-up: lon→height, lat→width)
+function fitPoints(pts,frac=CFG.fitFrac){
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const wW=Math.max(maxx-minx,0.6),hW=Math.max(maxy-miny,0.6);
+  return {cx:(minx+maxx)/2, cy:(miny+maxy)/2,
+          zoom:clamp(Math.min(H*frac/wW, W*frac/hW), MINZOOM, CFG.maxZoom)};
+}
 
 // frame current leg + its references into ~60% of the viewport
 function fitLeg(){
   const pts=[project(A),project(B)];
   if(mode==='puzzle'&&puzzle) puzzle.candidates.forEach(c=>pts.push(project(c)));
   else if(C) pts.push(project(C));
-  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
-  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
-  cam.cx=(minx+maxx)/2;cam.cy=(miny+maxy)/2;
-  const wW=Math.max(maxx-minx,0.6),hW=Math.max(maxy-miny,0.6);
-  cam.zoom=clamp(Math.min(H*CFG.fitFrac/wW, W*CFG.fitFrac/hW), MINZOOM, CFG.maxZoom);   // east-up: lon→height
+  Object.assign(cam,fitPoints(pts));
 }
 
 // ---------- coastlines (built once in world coords) ----------
@@ -360,6 +370,57 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
   drawRoseLabels(Pw,v,cur);
 }
 
+// ---------- story mode (the settlement of the Pacific) ----------
+// While `story` is set, draw() swaps the voyage layers for migration arcs over
+// the coastlines and loop() eases the camera toward `camTarget` (beat flights).
+let story=null;            // {beat,tBeat} while the walkthrough is playing
+let camTarget=null;        // {cx,cy,zoom} the camera eases toward
+
+function arcProgress(bi,ai){
+  if(bi<story.beat||reduceMotion)return 1;
+  return Math.max(0,Math.min(1,(story.tBeat-ai*CFG.storyStagger)/CFG.storyArcSec));
+}
+
+function drawStory(v){
+  for(let bi=0;bi<=story.beat;bi++){
+    const on=bi===story.beat;
+    ctx.strokeStyle=on?hexA(PAL.amber,0.75):hexA(PAL.ghost,0.55);
+    ctx.lineWidth=(on?1.6:1)/v.Z;
+    ETAK_STORY[bi].arcs.forEach((arc,ai)=>{
+      const p=arcProgress(bi,ai);
+      if(p<=0)return;
+      const N=48;
+      ctx.beginPath();
+      for(let i=0;i<=N;i++){
+        const w=project(gcInterp(arc.from,arc.to,p*i/N));
+        i?ctx.lineTo(w.x,w.y):ctx.moveTo(w.x,w.y);
+      }
+      ctx.stroke();
+      const hw=project(gcInterp(arc.from,arc.to,p));    // head while growing, landfall once there
+      ctx.fillStyle=on?PAL.amber:hexA(PAL.ghost,0.8);
+      ctx.beginPath();ctx.arc(hw.x,hw.y,(p<1?3:2.2)/v.Z,0,7);ctx.fill();
+    });
+  }
+}
+
+function drawStoryLabels(v){
+  ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='left';
+  for(let bi=0;bi<=story.beat;bi++){
+    const col=bi===story.beat?hexA(PAL.amber,0.9):hexA(PAL.dim,0.6);
+    ETAK_STORY[bi].arcs.forEach((arc,ai)=>{
+      ctx.fillStyle=col;
+      if(arc.fromName){
+        const s=worldToScreen(project(arc.from),v);
+        ctx.fillText(arc.fromName,s.x+7,s.y+3);
+      }
+      if(arcProgress(bi,ai)>=1){
+        const s=worldToScreen(project(arc.to),v);
+        ctx.fillText(arc.name+(arc.date?` · ${arc.date}`:''),s.x+7,s.y+3);
+      }
+    });
+  }
+}
+
 // ---------- milky way (built once): dust scattered about the galactic equator ----------
 // Galactic -> equatorial via the J2000 NGP (RA 192.859°, Dec 27.128°, l_NCP 122.932°).
 // Density peaks toward the galactic core, spreads gaussian in latitude (wider at the
@@ -575,17 +636,23 @@ function draw(){
     // ---- world-space pass ----
     ctx.save();applyTransform(v);
     drawCoast(v);
-    drawRangeRings(v);
-    drawCourse(v,Aw,Bw);
-    drawTrails(v,Pw,Aw);
-    drawRose(Pw,v,cur);
-    drawBearings(v,Pw);
-    drawCanoe(v,Pw,Aw,Bw);
-    ctx.restore();
+    if(story){                     // story mode: migration arcs over bare coastlines
+      drawStory(v);
+      ctx.restore();
+      drawStoryLabels(v);
+    }else{
+      drawRangeRings(v);
+      drawCourse(v,Aw,Bw);
+      drawTrails(v,Pw,Aw);
+      drawRose(Pw,v,cur);
+      drawBearings(v,Pw);
+      drawCanoe(v,Pw,Aw,Bw);
+      ctx.restore();
 
-    // ---- screen-space pass ----
-    drawGazetteer(v);
-    drawMarkersAndLabels(v,Pw,Aw,Bw,cur);
+      // ---- screen-space pass ----
+      drawGazetteer(v);
+      drawMarkersAndLabels(v,Pw,Aw,Bw,cur);
+    }
   }
 
   // boat view fades through night: first half darkens, second half draws lines
@@ -713,9 +780,50 @@ mPuzzle.addEventListener('click',()=>setMode('puzzle'));
 mSandbox.addEventListener('click',()=>setMode('sandbox'));
 newBtn.addEventListener('click',()=>{passageIndex=(passageIndex+1)%ETAK_PASSAGES.length;makePuzzle();});
 
+// ---------- story mode control ----------
+const storyCard=document.getElementById('storyCard');
+const storyEra=document.getElementById('storyEra'),storyTitle=document.getElementById('storyTitle');
+const storyText=document.getElementById('storyText'),storyNext=document.getElementById('storyNext');
+const storyChrome=[document.querySelector('.bar'),document.querySelector('.modeswitch'),
+                   document.querySelector('.frames'),readoutEl];
+const storySeen=()=>{try{return localStorage.getItem('etakStorySeen');}catch(_){return '1';}};
+
+function storyShowBeat(){
+  const bt=ETAK_STORY[story.beat];
+  story.tBeat=0;
+  camTarget=fitPoints(bt.fit.map(project),CFG.storyFitFrac);
+  storyEra.textContent=bt.era;storyTitle.textContent=bt.title;storyText.textContent=bt.text;
+  storyNext.textContent=story.beat===ETAK_STORY.length-1?'SAIL ⟶':'NEXT ⟶';
+}
+function startStory(){
+  setPlaying(false);fTarget=0;bTarget=0;t=0;scrub.value=0;
+  story={beat:0,tBeat:0};
+  storyChrome.forEach(el=>el.classList.add('hidden'));
+  chooserEl.classList.add('hidden');newBtn.classList.add('hidden');departWrap.classList.add('hidden');
+  storyCard.classList.remove('hidden');
+  storyShowBeat();
+}
+function endStory(){
+  story=null;camTarget=null;
+  try{localStorage.setItem('etakStorySeen','1');}catch(_){}
+  storyCard.classList.add('hidden');
+  storyChrome.forEach(el=>el.classList.remove('hidden'));
+  chooserEl.classList.toggle('hidden',mode!=='puzzle');
+  newBtn.classList.toggle('hidden',mode!=='puzzle');
+  fitLeg();
+}
+storyNext.addEventListener('click',()=>{
+  if(story.beat<ETAK_STORY.length-1){story.beat++;storyShowBeat();}
+  else endStory();
+});
+document.getElementById('storySkip').addEventListener('click',endStory);
+document.getElementById('storyBtn').addEventListener('click',()=>{if(!story)startStory();});
+addEventListener('keydown',e=>{if(story&&e.key==='Escape')endStory();});
+
 // ---------- camera + sandbox drag (chart frame) ----------
 let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | null
 canvas.addEventListener('pointerdown',e=>{
+  if(story)return;                     // camera belongs to the story flights
   if(bTarget===1){                     // aboard: drag turns your gaze
     dragMode='gaze';lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);return;
   }
@@ -740,7 +848,7 @@ canvas.addEventListener('pointermove',e=>{
 canvas.addEventListener('pointerup',()=>{dragMode=null;});
 canvas.addEventListener('wheel',e=>{
   e.preventDefault();
-  if(bTarget===1)return;               // no zoom from the boat
+  if(story||bTarget===1)return;        // no zoom during the story or from the boat
   const before=screenToWorld(e.clientX,e.clientY);
   cam.zoom=clamp(cam.zoom*(e.deltaY<0?CFG.zoomStep:1/CFG.zoomStep),MINZOOM,CFG.maxZoom);
   const after=screenToWorld(e.clientX,e.clientY);
@@ -755,10 +863,19 @@ function loop(now){
   const fSpeed=reduceMotion?CFG.fEaseReduced:CFG.fEase;
   f+=(fTarget-f)*Math.min(1,dt*fSpeed);if(Math.abs(fTarget-f)<0.001)f=fTarget;
   b+=(bTarget-b)*Math.min(1,dt*fSpeed);if(Math.abs(bTarget-b)<0.001)b=bTarget;
+  if(story)story.tBeat+=dt;
+  if(camTarget){                       // story camera flight (zoom eased in log space)
+    const k=Math.min(1,dt*(reduceMotion?CFG.fEaseReduced:CFG.storyEase));
+    cam.cx+=(camTarget.cx-cam.cx)*k;cam.cy+=(camTarget.cy-cam.cy)*k;
+    cam.zoom*=Math.pow(camTarget.zoom/cam.zoom,k);
+    if(Math.abs(camTarget.cx-cam.cx)<0.005&&Math.abs(camTarget.cy-cam.cy)<0.005&&
+       Math.abs(Math.log(camTarget.zoom/cam.zoom))<0.001){Object.assign(cam,camTarget);camTarget=null;}
+  }
   draw();
   requestAnimationFrame(loop);
 }
 resize();
 setMode('puzzle');
+if(!storySeen())startStory();
 requestAnimationFrame(loop);
 })();

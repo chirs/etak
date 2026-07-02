@@ -14,6 +14,7 @@
 <header>
   <h1>ETAK</h1>
   <div class="sub" id="sub">Choose the reference island whose bearing best divides the voyage into etaks.</div>
+  <button id="storyBtn" class="storylink">⟲ how the pacific was settled</button>
 </header>
 
 <div class="modeswitch" role="group" aria-label="Mode">
@@ -30,6 +31,16 @@
 
 <div class="chooser" id="chooser">
   <div class="ttl">candidate references</div>
+</div>
+
+<div class="storycard hidden" id="storyCard">
+  <div class="era" id="storyEra"></div>
+  <h2 id="storyTitle"></h2>
+  <p id="storyText"></p>
+  <div class="row">
+    <button id="storySkip">skip the story</button>
+    <button id="storyNext">NEXT ⟶</button>
+  </div>
 </div>
 
 <div class="readout" id="readout"></div>
