@@ -40,6 +40,7 @@ const CFG={
   fov:110,                      // boat view: horizontal field of view, degrees
   horizonFrac:0.62,             // boat view: horizon height as a fraction of the viewport
   bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
+  seaVanish:1.15,               // boat view: sea-grid vanishing point depth, fraction of H
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -368,15 +369,16 @@ function drawBoatView(cn,refDeg,cur){
   const hy=H*CFG.horizonFrac;
   ctx.lineWidth=1;
 
-  // polar sea grid: each house's azimuth line runs straight away from the hull —
-  // in this cylindrical view that is a vertical line falling from its horizon point
+  // polar sea grid: a line from each house's horizon point, converging on a
+  // vanishing point at bottom center (just off-screen, so they never quite meet)
   const seaG=ctx.createLinearGradient(0,hy,0,H);
   seaG.addColorStop(0,hexA(PAL.course,0.5));seaG.addColorStop(1,hexA(PAL.course,0.06));
   ctx.strokeStyle=seaG;
+  const vpx=W/2, vpy=H*CFG.seaVanish;
   for(let i=0;i<32;i++){
     if(!inView(relAz(i*HOUSE)))continue;
     const x=azX(i*HOUSE);
-    ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(x,H);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(vpx,vpy);ctx.stroke();
   }
 
   // horizon: soft glow under a crisp line
