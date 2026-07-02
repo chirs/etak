@@ -7,7 +7,7 @@
 
 ## Intermezzo
 
-- [ ] Reduce maximum zoom out to full screen
+- [x] Reduce maximum zoom out to full screen
 - [ ] UI redesign - unify, less messy
 - [ ] Clickable star labels (info? distance? names?)
 - [ ] Constellations

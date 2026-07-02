@@ -70,8 +70,9 @@ function resize(){
   DPR=Math.min(devicePixelRatio||1,2);
   W=innerWidth;H=innerHeight;
   canvas.width=W*DPR;canvas.height=H*DPR;
-  // east-up rotation maps world lon-extent to screen height, lat-extent to width
-  MINZOOM=0.95*Math.min(H/(B0.lonMax-B0.lonMin), W/(B0.latMax-B0.latMin));
+  // east-up rotation maps world lon-extent to screen height, lat-extent to width;
+  // cover (max), not contain: zoom-out stops once the chart fills the viewport
+  MINZOOM=Math.max(H/(B0.lonMax-B0.lonMin), W/(B0.latMax-B0.latMin));
   cam.zoom=clamp(cam.zoom,MINZOOM,CFG.maxZoom);
   if(story) camTarget=fitPoints(ETAK_STORY[story.beat].fit.map(project),CFG.storyFitFrac);
   else if(mode==='settlement') camTarget=fitPoints(ETAK_STORY[settle.beat].fit.map(project),CFG.storyFitFrac);
