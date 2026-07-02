@@ -31,3 +31,52 @@ Findings collected in [`docs/sources.md`](docs/sources.md) (fact-checked, confid
       Satawal→Lamotrek, Puluwat→Lamotrek)
 - [x] Overlay the sidereal compass on a real chart so the etaks land on true reference islands
       — the app draws a zoomable whole-Pacific chart with the rose over the live canoe position
+
+
+## Make the puzzle a real puzzle
+
+- [ ] Hide candidate scores until a choice is made — right now the chooser shows every score up
+      front, so there is nothing to guess. Pick first, then reveal all four scores + the verdict.
+
+
+## Name the stars
+
+The full 32-point compass (Carolinian names + azimuths) is already transcribed in
+`docs/sources.md` §1 — the app currently uses only the four cardinal labels.
+
+- [ ] Name the current star house in the readout — e.g. "house 6/32 — *tan* Máán (Vega rising)"
+      instead of a bare index; use the *tan*/*tubul* rising/setting prefixes
+- [ ] Label the rose points with the real star names (all 32 when zoomed / the current house
+      always; respect the myth watchlist — Mailap, not "big bird")
+- [ ] *Stretch:* east-up compass orientation option — Carolinian navigators anchor the compass on
+      Altair with east at the top; touches `viewParams()`, so all three transform functions move together
+
+
+## Show the etak stages
+
+- [ ] Etak strip on the scrubber — mark the boundary `t`s along the progress bar so segmentation
+      evenness is legible at a glance (the scrubber becomes the lesson)
+- [ ] Bird/sighting range rings — faint ~18 mi rings around home and destination on the chart, so
+      "etak of birds" / "of sighting" in the readout visibly correspond to something physical
+
+
+## View from the boat
+
+A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
+
+- [ ] Horizon view from the canoe — horizon band with the star houses arrayed along it, the
+      reference island's bearing point sliding across them as the voyage advances (each etak
+      boundary = it slips to the next house); destination/home direction marked
+- [ ] Decide how it joins the frame toggle — CHART↔NAVIGATOR crossfade by `f` blends one world
+      transform, but the boat view is a different projection entirely, so it is likely a discrete
+      third state (fade to black / cut) rather than a blend
+
+
+## More passages
+
+- [ ] Add the near-free legs — the gazetteer already has the islands (e.g. Puluwat→Pikelot,
+      Satawal→West Fayu, a documented turtle-hunting run); curate candidate sets with one clear
+      answer + instructive traps, as before
+- [ ] Research one longer documented voyage (e.g. the 1970s revival sailings toward Saipan) —
+      needs new gazetteer coordinates sourced into `docs/sources.md` §3, and possibly wider chart
+      bounds (`tools/build_map.py` constants + regenerate)
