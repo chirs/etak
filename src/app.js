@@ -79,6 +79,7 @@ for(const poly of PACIFIC_MAP.polys){
 let A,B,C;                 // {lat,lon,name} — home / destination / reference
 let boundaries=[];
 let live=null;
+let legNm=0;               // gcDistNm(A,B), constant per leg
 let puzzle=null;           // {candidates:[{id,name,lat,lon,shape?,score}], chosenIndex}
 let passageIndex=0;
 
@@ -87,6 +88,7 @@ const canoeAt=tt=>gcInterp(A,B,tt);
 function recompute(){
   live=scoreFor(A,B,C);
   boundaries=live.boundaries;
+  legNm=gcDistNm(A,B);
   updateScorePanel();
 }
 
@@ -279,16 +281,17 @@ function draw(){
 
 // ---------- UI ----------
 const readoutEl=document.getElementById('readout');
+let lastReadout='';
 function updateReadout(refDeg){
   const seg=boundaries.filter(b=>b<t).length+1;
   const total=boundaries.length+1;
   const segName=total>1&&seg===total?' — etak of sighting':
                 total>2&&seg===total-1?' — etak of birds':'';
-  const distNm=gcDistNm(A,B);
-  readoutEl.innerHTML=
+  const html=
     `etak <b class="etakN">${seg}</b> of <b>${total}</b>${segName}<br>`+
     `bearing to reference <b>${refDeg.toFixed(1).padStart(5,'0')}°</b> · house <b>${houseOf(refDeg)+1}</b>/32<br>`+
-    `leg <b>${Math.round(distNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>`;
+    `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>`;
+  if(html!==lastReadout){lastReadout=html;readoutEl.innerHTML=html;}
 }
 
 const scoreBig=document.getElementById('scoreBig');
