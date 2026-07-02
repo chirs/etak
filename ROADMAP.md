@@ -10,12 +10,16 @@
 
 ## Gather etak documents
 
-- [ ] Gladwin, *East Is a Big Bird* (Puluwat navigation) — the primary etak account
-- [ ] Lewis, *We, the Navigators* — comparative Pacific wayfinding
-- [ ] Collect the star-compass house names and the reference-island ("etak of birds" / "of sighting") terminology
+Findings collected in [`docs/sources.md`](docs/sources.md) (fact-checked, confidence-tagged).
 
-> Sources mostly survive as scanned books rather than clean references; the in-app star and
-> island names are placeholders pending real citations.
+- [x] Gladwin, *East Is a Big Bird* (Puluwat navigation) — the primary etak account (full text located)
+- [x] Lewis, *We, the Navigators* — comparative Pacific wayfinding (full text located)
+- [x] Reference-island terminology — etak method, "etak of birds" / "of sighting", relative frame
+- [x] **Full 32-point star-compass** — transcribed from Goodenough & Thomas (1987), Fig. 2, with Puluwat/Satawal star names + computed azimuths (see `docs/sources.md` §1)
+
+> Myth watchlist to keep out of the app: "*etak* = refuge", "compass = 32 *stars*" (it's 32
+> *points* from ~15 stars), and Gladwin's "big bird" gloss of Altair (a mistranslation — see
+> Holton et al. 2015). Details and citations in `docs/sources.md`.
 
 
 ## Use real maps
