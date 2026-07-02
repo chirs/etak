@@ -55,6 +55,9 @@ function altAz(raDeg,decDeg,latDeg,lstDeg){
 // rising azimuth of a star of declination dec at latitude lat (setting = 360 - this)
 const riseAz=(decDeg,latDeg)=>deg(Math.acos(Math.sin(rad(decDeg))/Math.cos(rad(latDeg))));
 
+// Greenwich mean sidereal time (degrees) from a Julian date; LST = gmst + east lon
+const gmst=jd=>((280.46061837+360.98564736629*(jd-2451545.0))%360+360)%360;
+
 // count the star-house crossings of bearing(canoe->ref) along the leg, return boundary t's
 function boundariesFor(A,B,ref){
   const at=tt=>gcInterp(A,B,tt);
@@ -91,7 +94,7 @@ function verdictText(s){
   return 'Workable. The bearing opens at a usable rate across the leg.';
 }
 
-return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,riseAz,boundariesFor,scoreFor,verdictText};
+return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,riseAz,gmst,boundariesFor,scoreFor,verdictText};
 })();
 
 // Node/test interop: expose as a module export when running under CommonJS/ESM

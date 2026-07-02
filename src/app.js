@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 
-const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,scoreFor,verdictText} = EtakCore;
+const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,gmst,scoreFor,verdictText} = EtakCore;
 
 const canvas = document.getElementById('sea');
 const ctx = canvas.getContext('2d');
@@ -35,10 +35,10 @@ const CFG={
   zoomStep:1.12,                // wheel zoom factor per notch
   fEase:2.6, fEaseReduced:8,    // frame-crossfade speed (reduced motion: near-instant)
   canoeKn:5.3,                  // Gladwin's measured proa speed (docs/sources.md §3)
-  gst0:63.6,                    // sidereal anchor: Altair just-risen at t=0 on Puluwat→Chuuk
+  depart:'1969-07-10T09:00:00Z',// dusk (19:00 local) at Puluwat, Hipour's revival year —
+                                // chosen so Altair sits just-risen at t=0 on Puluwat→Chuuk
   fov:110,                      // boat view: horizontal field of view, degrees
   horizonFrac:0.62,             // boat view: horizon height as a fraction of the viewport
-  seaLines:6, seaSpread:2.2,    // boat view: sea-grid horizontal count + vertical splay
   bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
 };
 
@@ -155,6 +155,8 @@ function makeSandbox(){
 let t=0,playing=false,speedMul=1,f=0,fTarget=0;
 let b=0,bTarget=0;         // boat-view fade (0 = chart/navigator, 1 = horizon view)
 let look=0;                // boat-view gaze, degrees off the course heading (0 = dead ahead)
+const DEPART_MS=Date.parse(CFG.depart);
+const voyageMs=()=>DEPART_MS+t*legHours*3600e3;   // real clock time at voyage fraction t
 let mode='puzzle';
 
 // ---------- view transform (single source; screenToWorld/worldToScreen invert it) ----------
@@ -366,17 +368,15 @@ function drawBoatView(cn,refDeg,cur){
   const hy=H*CFG.horizonFrac;
   ctx.lineWidth=1;
 
-  // sea grid: horizontals crowd toward the horizon, verticals splay outward
-  ctx.strokeStyle=hexA(PAL.course,0.45);
-  for(let k=1;k<=CFG.seaLines;k++){
-    const y=hy+(H-hy)*Math.pow(k/CFG.seaLines,2);
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
-  }
-  ctx.strokeStyle=hexA(PAL.course,0.22);
+  // polar sea grid: each house's azimuth line runs straight away from the hull —
+  // in this cylindrical view that is a vertical line falling from its horizon point
+  const seaG=ctx.createLinearGradient(0,hy,0,H);
+  seaG.addColorStop(0,hexA(PAL.course,0.5));seaG.addColorStop(1,hexA(PAL.course,0.06));
+  ctx.strokeStyle=seaG;
   for(let i=0;i<32;i++){
     if(!inView(relAz(i*HOUSE)))continue;
-    const xh=azX(i*HOUSE), xb=W/2+(xh-W/2)*CFG.seaSpread;
-    ctx.beginPath();ctx.moveTo(xh,hy);ctx.lineTo(xb,H);ctx.stroke();
+    const x=azX(i*HOUSE);
+    ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(x,H);ctx.stroke();
   }
 
   // horizon: soft glow under a crisp line
@@ -386,7 +386,7 @@ function drawBoatView(cn,refDeg,cur){
   ctx.beginPath();ctx.moveTo(0,hy);ctx.lineTo(W,hy);ctx.stroke();
 
   // the actual sky: field stars + named compass stars, turning with sailing time
-  const lst=(CFG.gst0+15.0411*t*legHours+cn.lon)%360;
+  const lst=(gmst(voyageMs()/86400000+2440587.5)+cn.lon)%360;
   const curBase=cur>=0?ETAK_COMPASS[cur].star
     .replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,''):null;
   for(const [ra,dec,mag] of STAR_MAP.field){
@@ -503,8 +503,16 @@ function draw(){
 const readoutEl=document.getElementById('readout');
 let lastReadout='';
 function updateReadout(refDeg){
-  const sail=bTarget===1?` · sailing hour <b>${Math.round(t*legHours)}</b> of <b>${Math.round(legHours)}</b>`+
-    ` · facing <b>${String(Math.round((gcBearing(canoeAt(t),B)+look+720)%360)).padStart(3,'0')}°</b>`:'';
+  let sail='';
+  if(bTarget===1){
+    const cnR=canoeAt(t);
+    const zone=Math.round(((cnR.lon%360)+360)%360/15);            // nautical time zone
+    const d=new Date(voyageMs()+zone*3600e3);
+    const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const hhmm=`${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
+    sail=` · <b>${MO[d.getUTCMonth()]} ${d.getUTCDate()} ${d.getUTCFullYear()}</b> · <b>${hhmm}</b>`+
+      ` · facing <b>${String(Math.round((gcBearing(cnR,B)+look+720)%360)).padStart(3,'0')}°</b>`;
+  }
   if(refDeg==null){
     const html=`<b>choose a reference island</b> — watch the ghost bearings sweep<br>`+
       `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>${sail}`;

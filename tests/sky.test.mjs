@@ -7,7 +7,7 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { altAz, riseAz } = require(path.join(here, '..', 'src', 'core.js'));
+const { altAz, riseAz, gmst } = require(path.join(here, '..', 'src', 'core.js'));
 const { compass } = require(path.join(here, '..', 'src', 'stars.js'));
 
 const star = g => compass.find(c => c.group === g);
@@ -37,6 +37,11 @@ test('rising azimuths reproduce the sources.md §1 compass table (±1.5°)', () 
     const az = riseAz(s.dec, LAT);
     assert.ok(Math.abs(az - azExp) < 1.5, `${g}: riseAz ${az.toFixed(1)} vs table ${azExp}`);
   }
+});
+
+test('gmst matches the textbook value at the J2000 epoch day', () => {
+  const jd = Date.UTC(2000, 0, 1, 0, 0, 0) / 86400000 + 2440587.5;   // 2000-01-01 00:00 UT
+  assert.ok(Math.abs(gmst(jd) - 99.9678) < 0.01, `gmst ${gmst(jd).toFixed(4)}`);
 });
 
 test('a star on the celestial equator rises due east and sets due west', () => {
