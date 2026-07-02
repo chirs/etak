@@ -21,6 +21,18 @@ const PAL = {
   refFill:cv('--ref-fill'), land:cv('--land'), coast:cv('--coast'),
 };
 
+// ---------- tuning constants ----------
+const CFG={
+  maxZoom:800,                  // screen px per world degree
+  fitFrac:0.6,                  // fitLeg frames the leg into this fraction of the viewport
+  roseR:200, roseLabelPad:18,   // rose radius + cardinal-label offset, screen px
+  trailN:14, trailStep:0.02,    // navigator drift trails: dot count + t spacing per dot
+  playRate:0.03,                // voyage fraction per second at speed 1
+  refHitR:26,                   // sandbox reference drag hit radius, screen px
+  zoomStep:1.12,                // wheel zoom factor per notch
+  fEase:2.6, fEaseReduced:8,    // frame-crossfade speed (reduced motion: near-instant)
+};
+
 // ---------- projection (rendering only; navigation math stays spherical) ----------
 // Equirectangular. World units are degrees: x = lon in [0,360) space, y = -lat
 // (north up). Stylized night chart — distortion is acceptable.
@@ -31,7 +43,7 @@ const unproject = w => ({ lat:-w.y, lon:lon360(w.x) });
 // ---------- viewport + camera ----------
 let W=0,H=0,DPR=1;
 const B0=PACIFIC_MAP.bounds;
-let MINZOOM=1,MAXZOOM=800;                 // screen px per world degree
+let MINZOOM=1;                             // screen px per world degree; max is CFG.maxZoom
 const cam={cx:(B0.lonMin+B0.lonMax)/2, cy:-(B0.latMin+B0.latMax)/2, zoom:2};
 
 function resize(){
@@ -39,7 +51,7 @@ function resize(){
   W=innerWidth;H=innerHeight;
   canvas.width=W*DPR;canvas.height=H*DPR;
   MINZOOM=0.95*Math.min(W/(B0.lonMax-B0.lonMin), H/(B0.latMax-B0.latMin));
-  cam.zoom=clamp(cam.zoom,MINZOOM,MAXZOOM);
+  cam.zoom=clamp(cam.zoom,MINZOOM,CFG.maxZoom);
   if(A&&B) fitLeg();
 }
 addEventListener('resize',resize);
@@ -53,7 +65,7 @@ function fitLeg(){
   const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
   cam.cx=(minx+maxx)/2;cam.cy=(miny+maxy)/2;
   const wW=Math.max(maxx-minx,0.6),hW=Math.max(maxy-miny,0.6);
-  cam.zoom=clamp(Math.min(W*0.6/wW, H*0.6/hW), MINZOOM, MAXZOOM);
+  cam.zoom=clamp(Math.min(W*CFG.fitFrac/wW, H*CFG.fitFrac/hW), MINZOOM, CFG.maxZoom);
 }
 
 // ---------- coastlines (built once in world coords) ----------
@@ -82,8 +94,8 @@ function recompute(){
 function makePuzzle(){
   const pas=ETAK_PASSAGES[passageIndex];
   const from=ETAK_ISLANDS[pas.from], to=ETAK_ISLANDS[pas.to];
-  A={...from,name:from.name};
-  B={...to,name:to.name};
+  A={...from};
+  B={...to};
   const candidates=pas.candidates.map(id=>{
     const isl=ETAK_ISLANDS[id];
     return {id,name:isl.name,lat:isl.lat,lon:isl.lon,score:scoreFor(A,B,isl)};
@@ -108,8 +120,8 @@ function applyChoice(i){
 function makeSandbox(){
   const pas=ETAK_PASSAGES[0];
   const from=ETAK_ISLANDS[pas.from], to=ETAK_ISLANDS[pas.to];
-  A={...from,name:from.name};
-  B={...to,name:to.name};
+  A={...from};
+  B={...to};
   // a hypothetical reference placed abeam, north of the mid-leg point
   const mid=gcInterp(A,B,0.5);
   C={lat:mid.lat+1.1, lon:mid.lon+0.15, name:'REFERENCE'};
@@ -163,7 +175,7 @@ function drawLabel(scr,name,below,dim){
 }
 
 function drawRose(Pw,v){
-  const R=200/v.Z;                          // 200 screen px in world units
+  const R=CFG.roseR/v.Z;                    // screen px in world units
   ctx.save();ctx.translate(Pw.x,Pw.y);ctx.globalAlpha=0.12+0.88*v.fe;
   ctx.strokeStyle=PAL.roseRing;ctx.lineWidth=1/v.Z;
   ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.stroke();
@@ -178,7 +190,7 @@ function drawRose(Pw,v){
 const ROSE_LABELS=[[0,'POLARIS · N'],[90,'MAILAP RISING · E'],[180,'CRUX · S'],[270,'MAILAP SETTING · W']];
 function drawRoseLabels(Pw,v){
   ctx.fillStyle=PAL.faint;ctx.font='9.5px "IBM Plex Mono",monospace';ctx.textAlign='center';
-  const R=(200+18)/v.Z;
+  const R=(CFG.roseR+CFG.roseLabelPad)/v.Z;
   for(const [deg,nm] of ROSE_LABELS){const a=(deg-90)*Math.PI/180;
     const w={x:Pw.x+Math.cos(a)*R, y:Pw.y+Math.sin(a)*R};
     const s=worldToScreen(w,v);ctx.fillText(nm,s.x,s.y+3);}
@@ -218,8 +230,8 @@ function draw(){
   // drift trails (navigator) / wake (chart)
   if(v.fe>0.03){
     for(const I of [A,B,C]){const Iw=project(I);const col=I===C?PAL.amber:PAL.teal;
-      for(let k=1;k<=14;k++){const tp=t-k*0.02;if(tp<0)break;const Ppw=project(canoeAt(tp));
-        ctx.globalAlpha=v.fe*(1-k/15)*0.5;ctx.fillStyle=col;
+      for(let k=1;k<=CFG.trailN;k++){const tp=t-k*CFG.trailStep;if(tp<0)break;const Ppw=project(canoeAt(tp));
+        ctx.globalAlpha=v.fe*(1-k/(CFG.trailN+1))*0.5;ctx.fillStyle=col;
         ctx.beginPath();ctx.arc(Iw.x+(Pw.x-Ppw.x),Iw.y+(Pw.y-Ppw.y),2/v.Z,0,7);ctx.fill();}}
     ctx.globalAlpha=1;
   }
@@ -335,10 +347,9 @@ newBtn.addEventListener('click',()=>{passageIndex=(passageIndex+1)%ETAK_PASSAGES
 // ---------- camera + sandbox drag (chart frame) ----------
 let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | null
 canvas.addEventListener('pointerdown',e=>{
-  const w=screenToWorld(e.clientX,e.clientY);
   if(mode==='sandbox'){
     const cs=worldToScreen(project(C));
-    if(Math.hypot(cs.x-e.clientX,cs.y-e.clientY)<26){dragMode='ref';canvas.setPointerCapture(e.pointerId);return;}
+    if(Math.hypot(cs.x-e.clientX,cs.y-e.clientY)<CFG.refHitR){dragMode='ref';canvas.setPointerCapture(e.pointerId);return;}
   }
   if(ease(f)<0.5){dragMode='pan';lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);}
 });
@@ -353,7 +364,7 @@ canvas.addEventListener('pointerup',()=>{dragMode=null;});
 canvas.addEventListener('wheel',e=>{
   e.preventDefault();
   const before=screenToWorld(e.clientX,e.clientY);
-  cam.zoom=clamp(cam.zoom*(e.deltaY<0?1.12:1/1.12),MINZOOM,MAXZOOM);
+  cam.zoom=clamp(cam.zoom*(e.deltaY<0?CFG.zoomStep:1/CFG.zoomStep),MINZOOM,CFG.maxZoom);
   const after=screenToWorld(e.clientX,e.clientY);
   cam.cx+=before.x-after.x;cam.cy+=before.y-after.y;
 },{passive:false});
@@ -362,8 +373,8 @@ canvas.addEventListener('wheel',e=>{
 let last=performance.now();
 function loop(now){
   const dt=Math.min((now-last)/1000,0.05);last=now;
-  if(playing){t+=dt*0.03*speedMul;if(t>=1){t=1;setPlaying(false);}scrub.value=t;}
-  const fSpeed=reduceMotion?8:2.6;
+  if(playing){t+=dt*CFG.playRate*speedMul;if(t>=1){t=1;setPlaying(false);}scrub.value=t;}
+  const fSpeed=reduceMotion?CFG.fEaseReduced:CFG.fEase;
   f+=(fTarget-f)*Math.min(1,dt*fSpeed);if(Math.abs(fTarget-f)<0.001)f=fTarget;
   draw();
   requestAnimationFrame(loop);
