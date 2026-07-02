@@ -41,6 +41,7 @@ const CFG={
   horizonUp:170,                // boat view: horizon height, px above the viewport bottom (clears the readout)
   bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
   seaVanish:1.15,               // boat view: sea-grid vanishing point depth, fraction of H
+  milkyN:4500,                  // boat view: milky-way dust points, scattered once at load
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -356,6 +357,34 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
   drawRoseLabels(Pw,v,cur);
 }
 
+// ---------- milky way (built once): dust scattered about the galactic equator ----------
+// Galactic -> equatorial via the J2000 NGP (RA 192.859°, Dec 27.128°, l_NCP 122.932°).
+// Density peaks toward the galactic core, spreads gaussian in latitude (wider at the
+// bulge), and the Great Rift (the Cygnus->Sagittarius dark lane) is thinned out.
+const MILKY=(()=>{
+  const R=Math.PI/180, aG=192.85948, dG=27.12825, lN=122.93192;
+  const galEq=(l,b)=>{
+    const sb=Math.sin(b*R), cb=Math.cos(b*R), dl=(lN-l)*R;
+    const dec=Math.asin(Math.sin(dG*R)*sb+Math.cos(dG*R)*cb*Math.cos(dl))/R;
+    const ra=((aG+Math.atan2(cb*Math.sin(dl),sb*Math.cos(dG*R)-cb*Math.sin(dG*R)*Math.cos(dl))/R)%360+360)%360;
+    return [ra,dec];
+  };
+  const gauss=()=>Math.sqrt(-2*Math.log(1-Math.random()))*Math.cos(2*Math.PI*Math.random());
+  const inRift=(l,b)=>(l<85||l>350)&&b>-0.5&&b<3.5;
+  const dust=[];
+  while(dust.length<CFG.milkyN){
+    const l=Math.random()*360, core=0.55+0.45*Math.cos(l*R);
+    if(Math.random()>core)continue;
+    const b=gauss()*(4.5+2.5*Math.cos(l*R));
+    if(inRift(l,b)&&Math.random()<0.65)continue;
+    dust.push([...galEq(l,b), 0.4+0.6*Math.random(), (0.04+0.09*Math.random())*(0.5+0.5*core)]);
+  }
+  const glow=[];
+  for(let l=0;l<360;l+=6)
+    glow.push([...galEq(l,0), (0.55+0.45*Math.cos(l*R))*(inRift(l,1)?0.55:1)]);
+  return {dust,glow};
+})();
+
 // ---------- boat view (third frame): the horizon from the canoe ----------
 // Pure screen space. A first-person window: CFG.fov degrees of azimuth across
 // the width, centered on the course heading plus the gaze offset `look`
@@ -392,6 +421,28 @@ function drawBoatView(cn,refDeg,cur){
   // ~38) dims stars toward the sea line by 10^(-0.4·k·(X−1)), k=0.25 mag/airmass.
   const lst=(gmst(voyageMs()/86400000+2440587.5)+cn.lon)%360;
   const dimAt=alt=>Math.pow(10,-0.1*(1/Math.sin(Math.max(alt,1.5)*Math.PI/180)-1));
+
+  // milky way: a soft glow along the galactic equator under a scatter of dust,
+  // clipped to the sky so the band can run right down to the sea line
+  ctx.save();ctx.beginPath();ctx.rect(0,14,W,hy-14);ctx.clip();
+  for(const [ra,dec,ints] of MILKY.glow){
+    const p=altAz(ra,dec,cn.lat,lst);
+    if(p.alt<-6||Math.abs(relAz(p.az))>CFG.fov/2+16)continue;
+    const x=azX(p.az), y=hy-p.alt*pxDeg, r=13*pxDeg;
+    const a=0.07*ints*dimAt(Math.max(p.alt,3));
+    const g=ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,hexA(PAL.starlight,a));g.addColorStop(1,hexA(PAL.starlight,0));
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  }
+  for(const [ra,dec,r0,a0] of MILKY.dust){
+    const p=altAz(ra,dec,cn.lat,lst);
+    if(p.alt<-0.5||!inView(relAz(p.az)))continue;
+    const a=a0*dimAt(p.alt);if(a<0.015)continue;
+    ctx.fillStyle=hexA(PAL.starlight,a);
+    ctx.beginPath();ctx.arc(azX(p.az),hy-p.alt*pxDeg,r0,0,7);ctx.fill();
+  }
+  ctx.restore();
+
   const curBase=cur>=0?ETAK_COMPASS[cur].star
     .replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,''):null;
   for(const [ra,dec,mag] of STAR_MAP.field){
