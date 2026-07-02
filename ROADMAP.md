@@ -72,6 +72,9 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
       transform, but the boat view is a different projection entirely, so it is likely a discrete
       third state (fade to black / cut) rather than a blend — implemented as a third button that
       fades through `PAL.night` on an eased `b`, drawn as a pure screen-space layer
+- [x] Real star map — Yale BSC catalog (`tools/build_stars.py` → `stars.js`) + `altAz`/`riseAz`
+      in the core; the boat-view sky rotates with sailing time at Gladwin's 5.3 kn, the compass
+      type-stars carry their Carolinian names, and the current house's star glows amber
 
 
 ## More passages

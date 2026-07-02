@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 
-const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,scoreFor,verdictText} = EtakCore;
+const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,scoreFor,verdictText} = EtakCore;
 
 const canvas = document.getElementById('sea');
 const ctx = canvas.getContext('2d');
@@ -34,6 +34,8 @@ const CFG={
   roseNames:50,                 // zoom (px/deg) above which all 32 house names label the rose
   zoomStep:1.12,                // wheel zoom factor per notch
   fEase:2.6, fEaseReduced:8,    // frame-crossfade speed (reduced motion: near-instant)
+  canoeKn:5.3,                  // Gladwin's measured proa speed (docs/sources.md §3)
+  gst0:63.6,                    // sidereal anchor: Altair just-risen at t=0 on Puluwat→Chuuk
   horizonFrac:0.62,             // boat view: horizon height as a fraction of the viewport
   seaLines:6, seaSpread:2.2,    // boat view: sea-grid horizontal count + vertical splay
   bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
@@ -87,6 +89,7 @@ let A,B,C;                 // {lat,lon,name} — home / destination / reference
 let boundaries=[];
 let live=null;
 let legNm=0;               // gcDistNm(A,B), constant per leg
+let legHours=0;            // sailing time at CFG.canoeKn — drives the boat-view sky
 let puzzle=null;           // {candidates:[{id,name,lat,lon,shape?,score}], chosenIndex}
 let passageIndex=0;
 let hoverIdx=-1;           // chooser button under the pointer (-1 = none): previews that candidate
@@ -97,6 +100,7 @@ function recompute(){
   live=C?scoreFor(A,B,C):null;
   boundaries=live?live.boundaries:[];
   legNm=gcDistNm(A,B);
+  legHours=legNm/CFG.canoeKn;
   updateScorePanel();
   buildEtakStrip();
 }
@@ -374,6 +378,29 @@ function drawBoatView(cn,refDeg,cur){
   ctx.strokeStyle=hexA(PAL.teal,0.85);ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(0,hy);ctx.lineTo(W,hy);ctx.stroke();
 
+  // the actual sky: field stars + named compass stars, turning with sailing time
+  const lst=(CFG.gst0+15.0411*t*legHours+cn.lon)%360;
+  const pxDeg=W/360;                       // same px/degree vertically as in azimuth
+  const curBase=cur>=0?ETAK_COMPASS[cur].star
+    .replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,''):null;
+  for(const [ra,dec,mag] of STAR_MAP.field){
+    const p=altAz(ra,dec,cn.lat,lst);
+    if(p.alt<-0.5)continue;
+    const y=hy-p.alt*pxDeg;if(y<14)continue;
+    ctx.fillStyle=hexA(PAL.starlight,Math.max(0.12,0.5-0.11*mag));
+    ctx.beginPath();ctx.arc(azX(p.az),y,Math.max(0.7,2.2-0.5*mag),0,7);ctx.fill();
+  }
+  ctx.font='9px "IBM Plex Mono",monospace';ctx.textAlign='left';
+  for(const s of STAR_MAP.compass){
+    const p=altAz(s.ra,s.dec,cn.lat,lst);
+    if(p.alt<-0.5)continue;
+    const y=hy-p.alt*pxDeg;if(y<14)continue;
+    const x=azX(p.az), hot=s.group===curBase;
+    drawMarker({x,y},hot?PAL.amber:hexA(PAL.starlight,0.9),
+               hot?hexA(PAL.amber,0.4):null,hot?2.6:Math.max(1.4,2.6-0.5*s.mag));
+    if(s.lbl){ctx.fillStyle=hot?PAL.amber:hexA(PAL.dim,0.6);ctx.fillText(s.car||s.name,x+7,y+3);}
+  }
+
   // house ticks + boundary separators + names (same semantics as the rose)
   ctx.font='9.5px "IBM Plex Mono",monospace';
   for(let i=0;i<32;i++){
@@ -465,9 +492,10 @@ function draw(){
 const readoutEl=document.getElementById('readout');
 let lastReadout='';
 function updateReadout(refDeg){
+  const sail=bTarget===1?` · sailing hour <b>${Math.round(t*legHours)}</b> of <b>${Math.round(legHours)}</b>`:'';
   if(refDeg==null){
     const html=`<b>choose a reference island</b> — watch the ghost bearings sweep<br>`+
-      `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>`;
+      `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>${sail}`;
     if(html!==lastReadout){lastReadout=html;readoutEl.innerHTML=html;}
     return;
   }
@@ -482,7 +510,7 @@ function updateReadout(refDeg){
   const html=
     `etak <b class="etakN">${seg}</b> of <b>${total}</b>${segName}<br>`+
     `bearing to reference <b>${refDeg.toFixed(1).padStart(5,'0')}°</b> · house <b>${h+1}</b>/32 — ${houseName}<br>`+
-    `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>`;
+    `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>${sail}`;
   if(html!==lastReadout){lastReadout=html;readoutEl.innerHTML=html;}
 }
 

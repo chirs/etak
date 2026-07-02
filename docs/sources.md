@@ -44,7 +44,9 @@ four cardinals (Altair rising/setting are E/W; Polaris N and Crux upright S). Na
 attested spelling variation or an identification the source itself flags as uncertain.
 
 Azimuths are **computed**, not from the source: `az_rise = arccos(sin δ / cos φ)` at
-φ = 7.4°N (Satawal), `az_set = 360 − az_rise`. Treat as approximate (±~1°). Note the native
+φ = 7.4°N (Satawal), `az_set = 360 − az_rise`. Treat as approximate (±~1°). (This table is now
+regression-tested against the app's `EtakCore.riseAz` + the Yale BSC declinations —
+`tests/sky.test.mjs`.) Note the native
 compass calls **Altair's rising "due east" (`jeetiw`) by convention** even though its true azimuth
 is ~81°, so conceptual bearings compress slightly toward the E–W axis versus these true values.
 

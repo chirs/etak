@@ -42,6 +42,19 @@ function gcInterp(p,q,k){
 
 const houseOf=deg=>Math.floor(((deg+HOUSE/2)%360)/HOUSE);
 
+// star (ra,dec) as seen from latitude at local sidereal time -> {alt,az},
+// az clockwise from true north, degrees. HA = LST - RA.
+function altAz(raDeg,decDeg,latDeg,lstDeg){
+  const H=rad(lstDeg-raDeg),φ=rad(latDeg),δ=rad(decDeg);
+  const alt=Math.asin(Math.sin(φ)*Math.sin(δ)+Math.cos(φ)*Math.cos(δ)*Math.cos(H));
+  const az=Math.atan2(-Math.cos(δ)*Math.sin(H),
+                      Math.sin(δ)*Math.cos(φ)-Math.cos(δ)*Math.sin(φ)*Math.cos(H));
+  return {alt:deg(alt), az:(deg(az)+360)%360};
+}
+
+// rising azimuth of a star of declination dec at latitude lat (setting = 360 - this)
+const riseAz=(decDeg,latDeg)=>deg(Math.acos(Math.sin(rad(decDeg))/Math.cos(rad(latDeg))));
+
 // count the star-house crossings of bearing(canoe->ref) along the leg, return boundary t's
 function boundariesFor(A,B,ref){
   const at=tt=>gcInterp(A,B,tt);
@@ -78,7 +91,7 @@ function verdictText(s){
   return 'Workable. The bearing opens at a usable rate across the leg.';
 }
 
-return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,boundariesFor,scoreFor,verdictText};
+return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,riseAz,boundariesFor,scoreFor,verdictText};
 })();
 
 // Node/test interop: expose as a module export when running under CommonJS/ESM
