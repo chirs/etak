@@ -36,6 +36,7 @@ const CFG={
   fEase:2.6, fEaseReduced:8,    // frame-crossfade speed (reduced motion: near-instant)
   canoeKn:5.3,                  // Gladwin's measured proa speed (docs/sources.md §3)
   gst0:63.6,                    // sidereal anchor: Altair just-risen at t=0 on Puluwat→Chuuk
+  fov:110,                      // boat view: horizontal field of view, degrees
   horizonFrac:0.62,             // boat view: horizon height as a fraction of the viewport
   seaLines:6, seaSpread:2.2,    // boat view: sea-grid horizontal count + vertical splay
   bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
@@ -153,6 +154,7 @@ function makeSandbox(){
 // ---------- sim state ----------
 let t=0,playing=false,speedMul=1,f=0,fTarget=0;
 let b=0,bTarget=0;         // boat-view fade (0 = chart/navigator, 1 = horizon view)
+let look=0;                // boat-view gaze, degrees off the course heading (0 = dead ahead)
 let mode='puzzle';
 
 // ---------- view transform (single source; screenToWorld/worldToScreen invert it) ----------
@@ -352,11 +354,15 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
 }
 
 // ---------- boat view (third frame): the horizon from the canoe ----------
-// Pure screen space. Full 360° of azimuth across the width, centered on the
-// course heading, so the destination sits dead ahead and home at the wrap edges.
+// Pure screen space. A first-person window: CFG.fov degrees of azimuth across
+// the width, centered on the course heading plus the gaze offset `look`
+// (drag / arrow keys to turn). Dead ahead = look 0 = destination centered.
 function drawBoatView(cn,refDeg,cur){
   const hdg=gcBearing(cn,B);
-  const azX=az=>W/2+((((az-hdg+540)%360)-180)/360)*W;
+  const relAz=az=>((az-hdg-look+540)%360)-180;      // degrees off the gaze center
+  const inView=rel=>Math.abs(rel)<CFG.fov/2+8;
+  const pxDeg=W/CFG.fov;                            // px per degree, both axes
+  const azX=az=>W/2+relAz(az)*pxDeg;
   const hy=H*CFG.horizonFrac;
   ctx.lineWidth=1;
 
@@ -368,6 +374,7 @@ function drawBoatView(cn,refDeg,cur){
   }
   ctx.strokeStyle=hexA(PAL.course,0.22);
   for(let i=0;i<32;i++){
+    if(!inView(relAz(i*HOUSE)))continue;
     const xh=azX(i*HOUSE), xb=W/2+(xh-W/2)*CFG.seaSpread;
     ctx.beginPath();ctx.moveTo(xh,hy);ctx.lineTo(xb,H);ctx.stroke();
   }
@@ -380,12 +387,11 @@ function drawBoatView(cn,refDeg,cur){
 
   // the actual sky: field stars + named compass stars, turning with sailing time
   const lst=(CFG.gst0+15.0411*t*legHours+cn.lon)%360;
-  const pxDeg=W/360;                       // same px/degree vertically as in azimuth
   const curBase=cur>=0?ETAK_COMPASS[cur].star
     .replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,''):null;
   for(const [ra,dec,mag] of STAR_MAP.field){
     const p=altAz(ra,dec,cn.lat,lst);
-    if(p.alt<-0.5)continue;
+    if(p.alt<-0.5||!inView(relAz(p.az)))continue;
     const y=hy-p.alt*pxDeg;if(y<14)continue;
     ctx.fillStyle=hexA(PAL.starlight,Math.max(0.12,0.5-0.11*mag));
     ctx.beginPath();ctx.arc(azX(p.az),y,Math.max(0.7,2.2-0.5*mag),0,7);ctx.fill();
@@ -393,7 +399,7 @@ function drawBoatView(cn,refDeg,cur){
   ctx.font='9px "IBM Plex Mono",monospace';ctx.textAlign='left';
   for(const s of STAR_MAP.compass){
     const p=altAz(s.ra,s.dec,cn.lat,lst);
-    if(p.alt<-0.5)continue;
+    if(p.alt<-0.5||!inView(relAz(p.az)))continue;
     const y=hy-p.alt*pxDeg;if(y<14)continue;
     const x=azX(p.az), hot=s.group===curBase;
     drawMarker({x,y},hot?PAL.amber:hexA(PAL.starlight,0.9),
@@ -404,6 +410,7 @@ function drawBoatView(cn,refDeg,cur){
   // house ticks + boundary separators + names (same semantics as the rose)
   ctx.font='9.5px "IBM Plex Mono",monospace';
   for(let i=0;i<32;i++){
+    if(!inView(relAz(i*HOUSE)))continue;
     const x=azX(i*HOUSE);
     const major=i%8===0, tick=major?14:(i%4===0?10:6);
     ctx.strokeStyle=i===cur?PAL.amber:PAL.roseMinor;ctx.lineWidth=i===cur?2:1;
@@ -424,27 +431,31 @@ function drawBoatView(cn,refDeg,cur){
   if(mode==='puzzle'&&puzzle){
     puzzle.candidates.forEach((cd,i)=>{
       if(i===puzzle.chosenIndex)return;
-      const x=azX(gcBearing(cn,cd)), hot=i===hoverIdx;
+      const az=gcBearing(cn,cd);if(!inView(relAz(az)))return;
+      const x=azX(az), hot=i===hoverIdx;
       caret(x,hot?hexA(PAL.amber,0.6):hexA(PAL.dim,0.7));
       name(x,hy+24,cd.name,hot?hexA(PAL.amber,0.8):PAL.dim);
     });
   }
-  const xA=azX(gcBearing(cn,A)), xB=W/2;
-  caret(xB,PAL.teal);          name(xB,hy+38,B.name,PAL.faint);
-  caret(xA,hexA(PAL.teal,0.5));name(xA,hy+38,A.name,PAL.dim);
-  if(C&&refDeg!=null){
+  const azA=gcBearing(cn,A);
+  if(inView(relAz(hdg))){const x=azX(hdg);caret(x,PAL.teal);name(x,hy+38,B.name,PAL.faint);}
+  if(inView(relAz(azA))){const x=azX(azA);caret(x,hexA(PAL.teal,0.5));name(x,hy+38,A.name,PAL.dim);}
+  if(C&&refDeg!=null&&inView(relAz(refDeg))){
     const x=azX(refDeg);
     ctx.strokeStyle=hexA(PAL.amber,0.18);ctx.lineWidth=3;      // sky beam at the ref bearing
     ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(x,hy-64);ctx.stroke();
     caret(x,PAL.amber);name(x,hy+24,C.name,PAL.amber);
   }
 
-  // bow: two mirrored wireframe curves converging at bottom center
-  const bw=W*CFG.bowW, bh=H*CFG.bowH;
-  ctx.strokeStyle=hexA(PAL.starlight,0.35);ctx.lineWidth=1.5;
-  for(const s of [1,-1]){
-    ctx.beginPath();ctx.moveTo(W/2+s*bw,H+2);
-    ctx.quadraticCurveTo(W/2+s*bw*0.35,H-bh*0.55,W/2,H-bh);ctx.stroke();
+  // bow: two mirrored wireframe curves anchored at the heading azimuth — it's
+  // part of the boat, so it slides out of frame when you look abeam
+  if(inView(relAz(hdg))){
+    const bx=azX(hdg), bw=W*CFG.bowW, bh=H*CFG.bowH;
+    ctx.strokeStyle=hexA(PAL.starlight,0.35);ctx.lineWidth=1.5;
+    for(const s of [1,-1]){
+      ctx.beginPath();ctx.moveTo(bx+s*bw,H+2);
+      ctx.quadraticCurveTo(bx+s*bw*0.35,H-bh*0.55,bx,H-bh);ctx.stroke();
+    }
   }
 }
 
@@ -492,7 +503,8 @@ function draw(){
 const readoutEl=document.getElementById('readout');
 let lastReadout='';
 function updateReadout(refDeg){
-  const sail=bTarget===1?` · sailing hour <b>${Math.round(t*legHours)}</b> of <b>${Math.round(legHours)}</b>`:'';
+  const sail=bTarget===1?` · sailing hour <b>${Math.round(t*legHours)}</b> of <b>${Math.round(legHours)}</b>`+
+    ` · facing <b>${String(Math.round((gcBearing(canoeAt(t),B)+look+720)%360)).padStart(3,'0')}°</b>`:'';
   if(refDeg==null){
     const html=`<b>choose a reference island</b> — watch the ghost bearings sweep<br>`+
       `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>${sail}`;
@@ -558,9 +570,17 @@ playBtn.addEventListener('click',()=>{if(!playing&&t>=1)t=0;setPlaying(!playing)
 scrub.addEventListener('input',()=>{t=+scrub.value;setPlaying(false);});
 speedEl.addEventListener('input',()=>{speedMul=+speedEl.value;});
 
-document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget=0;frameActive(e.target);});
-document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;frameActive(e.target);});
-document.getElementById('fBoat').addEventListener('click',e=>{bTarget=1;frameActive(e.target);});
+const frameHint=document.querySelector('.frames .hint');
+document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget=0;frameHint.textContent='same voyage, three frames';frameActive(e.target);});
+document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;frameHint.textContent='same voyage, three frames';frameActive(e.target);});
+document.getElementById('fBoat').addEventListener('click',e=>{bTarget=1;look=0;frameHint.textContent='drag the sea to look around';frameActive(e.target);});
+
+// arrow keys swing the gaze one star house at a time while aboard
+addEventListener('keydown',e=>{
+  if(bTarget!==1||e.target.tagName==='INPUT')return;
+  if(e.key==='ArrowLeft'){look-=HOUSE;e.preventDefault();}
+  else if(e.key==='ArrowRight'){look+=HOUSE;e.preventDefault();}
+});
 function frameActive(btn){document.querySelectorAll('.frames button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
 
 const mPuzzle=document.getElementById('mPuzzle'),mSandbox=document.getElementById('mSandbox');
@@ -581,7 +601,9 @@ newBtn.addEventListener('click',()=>{passageIndex=(passageIndex+1)%ETAK_PASSAGES
 // ---------- camera + sandbox drag (chart frame) ----------
 let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | null
 canvas.addEventListener('pointerdown',e=>{
-  if(bTarget===1)return;               // no pan/zoom/drag from the boat
+  if(bTarget===1){                     // aboard: drag turns your gaze
+    dragMode='gaze';lastX=e.clientX;canvas.setPointerCapture(e.pointerId);return;
+  }
   if(mode==='sandbox'){
     const cs=worldToScreen(project(C));
     if(Math.hypot(cs.x-e.clientX,cs.y-e.clientY)<CFG.refHitR){dragMode='ref';canvas.setPointerCapture(e.pointerId);return;}
@@ -589,7 +611,8 @@ canvas.addEventListener('pointerdown',e=>{
   if(ease(f)<0.5){dragMode='pan';lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);}
 });
 canvas.addEventListener('pointermove',e=>{
-  if(dragMode==='ref'){const w=screenToWorld(e.clientX,e.clientY);const p=unproject(w);C.lat=p.lat;C.lon=p.lon;recompute();}
+  if(dragMode==='gaze'){look=(look-(e.clientX-lastX)*(CFG.fov/W))%360;lastX=e.clientX;}
+  else if(dragMode==='ref'){const w=screenToWorld(e.clientX,e.clientY);const p=unproject(w);C.lat=p.lat;C.lon=p.lon;recompute();}
   else if(dragMode==='pan'){
     const a=screenToWorld(lastX,lastY),b=screenToWorld(e.clientX,e.clientY);
     cam.cx+=a.x-b.x;cam.cy+=a.y-b.y;lastX=e.clientX;lastY=e.clientY;
