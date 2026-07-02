@@ -8,6 +8,7 @@
   /* canvas-only tokens (read into the JS palette; keep these the single source) */
   --course:#285060; --tick:#3a4c66; --rose-ring:#33445e; --rose-minor:#4a5b76;
   --ghost:#243247; --island:#2a3a4f; --ref-fill:#4a3a22;
+  --land:#1a2536; --coast:#33465f;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}

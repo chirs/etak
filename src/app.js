@@ -1,11 +1,12 @@
 (() => {
 'use strict';
 
-const {HOUSE,lerp,bearing,houseOf,scoreFor,verdictText} = EtakCore;
+const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,scoreFor,verdictText} = EtakCore;
 
 const canvas = document.getElementById('sea');
 const ctx = canvas.getContext('2d');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 
 // ---------- palette (single source of truth: the :root custom properties) ----------
 const cssVars = getComputedStyle(document.documentElement);
@@ -16,101 +17,60 @@ const PAL = {
   starlight:cv('--starlight'), amber:cv('--amber'), teal:cv('--teal'),
   faint:cv('--faint'), dim:cv('--dim'),
   course:cv('--course'), tick:cv('--tick'), roseRing:cv('--rose-ring'),
-  roseMinor:cv('--rose-minor'), ghost:cv('--ghost'), island:cv('--island'), refFill:cv('--ref-fill'),
+  roseMinor:cv('--rose-minor'), ghost:cv('--ghost'), island:cv('--island'),
+  refFill:cv('--ref-fill'), land:cv('--land'), coast:cv('--coast'),
 };
 
-// ---------- viewport ----------
-let W=0,H=0,DPR=1,scale=1;
+// ---------- projection (rendering only; navigation math stays spherical) ----------
+// Equirectangular. World units are degrees: x = lon in [0,360) space, y = -lat
+// (north up). Stylized night chart — distortion is acceptable.
+const lon360 = lon => (lon%360+360)%360;
+const project   = p => ({ x:lon360(p.lon), y:-p.lat });
+const unproject = w => ({ lat:-w.y, lon:lon360(w.x) });
+
+// ---------- viewport + camera ----------
+let W=0,H=0,DPR=1;
+const B0=PACIFIC_MAP.bounds;
+let MINZOOM=1,MAXZOOM=800;                 // screen px per world degree
+const cam={cx:(B0.lonMin+B0.lonMax)/2, cy:-(B0.latMin+B0.latMax)/2, zoom:2};
+
 function resize(){
   DPR=Math.min(devicePixelRatio||1,2);
   W=innerWidth;H=innerHeight;
   canvas.width=W*DPR;canvas.height=H*DPR;
-  scale=Math.min(W/1150,H/1900);
+  MINZOOM=0.95*Math.min(W/(B0.lonMax-B0.lonMin), H/(B0.latMax-B0.latMin));
+  cam.zoom=clamp(cam.zoom,MINZOOM,MAXZOOM);
+  if(A&&B) fitLeg();
 }
-addEventListener('resize',resize);resize();
+addEventListener('resize',resize);
 
-// ---------- puzzle generation ----------
-let seed=Date.now()%2147483647;
-const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
-const rng=(a,b)=>a+(b-a)*rnd();
-
-function blob(rBase,n,jitter,s0){
-  const save=seed;seed=s0;const pts=[];
-  for(let i=0;i<n;i++){const a=i/n*2*Math.PI;const r=rBase*(1+(rnd()-0.5)*jitter);
-    pts.push([Math.cos(a)*r,Math.sin(a)*r*0.72]);}
-  seed=save;return pts;
-}
-
-let puzzle=null;   // {A,B,candidates:[{x,y,name,shape,score}], chosenIndex}
-const NAMES=[' ELATO',' LAMOTREK',' SATAWAL',' PULUWAT',' PULAP',' FARAULEP',' WOLEAI',' IFALUK',' EAURIPIK',' PIKELOT'];
-
-function makePuzzle(){
-  // course roughly horizontal, jittered
-  const A={x:-430,y:rng(-60,60),name:'HOME'};
-  const B={x: 430,y:rng(-60,60),name:'DESTINATION'};
-  const mid={x:(A.x+B.x)/2,y:(A.y+B.y)/2};
-
-  const cands=[];
-  // 1) one deliberately strong candidate: well abeam, far enough for ~6 etaks
-  {
-    const side=rnd()<0.5?-1:1;
-    let best=null;
-    for(let tries=0;tries<50;tries++){
-      const off=rng(-120,120);
-      const dist=rng(580,860);
-      const c={x:mid.x+off,y:mid.y+side*dist};
-      const s=scoreFor(A,B,c);
-      if(!best||s.total>best.s.total)best={c,s};
-    }
-    cands.push(best.c);
-  }
-  // 2) a trap: nearly in line with the course (beyond an endpoint)
-  {
-    const beyond=rnd()<0.5?-1:1;
-    const c={x:(beyond<0?A.x:B.x)+beyond*rng(150,320),y:mid.y+rng(-40,40)};
-    cands.push(c);
-  }
-  // 3) a trap: too close and abeam -> confetti
-  {
-    const side=rnd()<0.5?-1:1;
-    const c={x:mid.x+rng(-140,140),y:mid.y+side*rng(120,240)};
-    cands.push(c);
-  }
-  // 4) a middling one: right region, off-center so evenness suffers
-  {
-    const side=rnd()<0.5?-1:1;
-    const c={x:mid.x+rng(-360,360),y:mid.y+side*rng(420,760)};
-    cands.push(c);
-  }
-
-  // shuffle so the strong one isn't always first
-  for(let i=cands.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[cands[i],cands[j]]=[cands[j],cands[i]];}
-
-  const candidates=cands.map((c,i)=>({
-    x:c.x,y:c.y,name:NAMES[Math.floor(rnd()*NAMES.length)],
-    shape:blob(rng(18,26),12,0.6,(i+2)*997+Math.floor(rnd()*500)),
-    score:scoreFor(A,B,c)
-  }));
-
-  puzzle={A,B,candidates,chosenIndex:0};
-  buildChooserUI();
-  applyChoice(0,false);
+// frame current leg + its references into ~60% of the viewport
+function fitLeg(){
+  const pts=[project(A),project(B)];
+  if(mode==='puzzle'&&puzzle) puzzle.candidates.forEach(c=>pts.push(project(c)));
+  else if(C) pts.push(project(C));
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  cam.cx=(minx+maxx)/2;cam.cy=(miny+maxy)/2;
+  const wW=Math.max(maxx-minx,0.6),hW=Math.max(maxy-miny,0.6);
+  cam.zoom=clamp(Math.min(W*0.6/wW, H*0.6/hW), MINZOOM, MAXZOOM);
 }
 
-// ---------- active leg + reference (drives sim + drawing) ----------
-let A,B,C;                 // active home/dest/reference (C is a live {x,y,name})
+// ---------- coastlines (built once in world coords) ----------
+const landPath=new Path2D();
+for(const poly of PACIFIC_MAP.polys){
+  poly.forEach((pt,i)=>{const x=pt[0],y=-pt[1];i?landPath.lineTo(x,y):landPath.moveTo(x,y);});
+  landPath.closePath();
+}
+
+// ---------- active leg + reference ----------
+let A,B,C;                 // {lat,lon,name} — home / destination / reference
 let boundaries=[];
-let live=null;             // current score object
+let live=null;
+let puzzle=null;           // {candidates:[{id,name,lat,lon,shape?,score}], chosenIndex}
+let passageIndex=0;
 
-function applyChoice(i,animate){
-  puzzle.chosenIndex=i;
-  const cand=puzzle.candidates[i];
-  A=puzzle.A;B=puzzle.B;
-  C={x:cand.x,y:cand.y,name:cand.name};
-  recompute();
-  [...chooserEl.querySelectorAll('button')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
-  t=0;scrub.value=0;setPlaying(false);
-}
+const canoeAt=tt=>gcInterp(A,B,tt);
 
 function recompute(){
   live=scoreFor(A,B,C);
@@ -118,65 +78,110 @@ function recompute(){
   updateScorePanel();
 }
 
-// ---------- sandbox leg ----------
-function makeSandbox(){
-  A={x:-420,y:0,name:'HOME'};
-  B={x:420,y:0,name:'DESTINATION'};
-  C={x:40,y:-270,name:'REFERENCE'};
-  C.shape=blob(22,12,0.65,37);
+// ---------- puzzle (real passages) ----------
+function makePuzzle(){
+  const pas=ETAK_PASSAGES[passageIndex];
+  const from=ETAK_ISLANDS[pas.from], to=ETAK_ISLANDS[pas.to];
+  A={...from,name:from.name};
+  B={...to,name:to.name};
+  const candidates=pas.candidates.map(id=>{
+    const isl=ETAK_ISLANDS[id];
+    return {id,name:isl.name,lat:isl.lat,lon:isl.lon,score:scoreFor(A,B,isl)};
+  });
+  puzzle={candidates,chosenIndex:0};
+  subEl.textContent=`${pas.name} — ${pas.note}`;
+  buildChooserUI();
+  fitLeg();
+  applyChoice(0);
+}
+
+function applyChoice(i){
+  puzzle.chosenIndex=i;
+  const cand=puzzle.candidates[i];
+  C={lat:cand.lat,lon:cand.lon,name:cand.name};
   recompute();
+  [...chooserEl.querySelectorAll('button')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
+  t=0;scrub.value=0;setPlaying(false);
+}
+
+// ---------- sandbox ----------
+function makeSandbox(){
+  const pas=ETAK_PASSAGES[0];
+  const from=ETAK_ISLANDS[pas.from], to=ETAK_ISLANDS[pas.to];
+  A={...from,name:from.name};
+  B={...to,name:to.name};
+  // a hypothetical reference placed abeam, north of the mid-leg point
+  const mid=gcInterp(A,B,0.5);
+  C={lat:mid.lat+1.1, lon:mid.lon+0.15, name:'REFERENCE'};
+  recompute();
+  fitLeg();
   t=0;scrub.value=0;setPlaying(false);
 }
 
 // ---------- sim state ----------
 let t=0,playing=false,speedMul=1,f=0,fTarget=0;
 let mode='puzzle';
-const canoeAt=tt=>({x:lerp(A.x,B.x,tt),y:lerp(A.y,B.y,tt)});
 
 // ---------- decorative stars ----------
 let sSeed=7;const srnd=()=>(sSeed=(sSeed*16807)%2147483647)/2147483647;
 const stars=Array.from({length:130},()=>({x:srnd(),y:srnd(),r:srnd()*1.1+0.3,p:srnd()*6.28,s:srnd()*0.7+0.3}));
-const shapeA=blob(30,14,0.55,11), shapeB=blob(26,12,0.6,23);
 
-// ---------- transform ----------
+// ---------- view transform (single source; screenToWorld/worldToScreen invert it) ----------
 const ease=k=>k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
-function worldTransform(){
-  const fe=ease(f);const rot=fe*(-Math.PI/2);const P=canoeAt(t);
-  const O={x:P.x*fe,y:P.y*fe};
-  ctx.translate(W/2,H/2+(1-fe)*20);ctx.rotate(rot);ctx.scale(scale,scale);ctx.translate(-O.x,-O.y);
-  return fe;
+function viewParams(){
+  const fe=ease(f);const rot=fe*(-Math.PI/2);
+  const P=project(canoeAt(t));
+  const O={x:lerp(cam.cx,P.x,fe), y:lerp(cam.cy,P.y,fe)};
+  return {fe,rot,O,Z:cam.zoom,cx:W/2,cy:H/2+(1-fe)*20};
+}
+function applyTransform(v){
+  ctx.translate(v.cx,v.cy);ctx.rotate(v.rot);ctx.scale(v.Z,v.Z);ctx.translate(-v.O.x,-v.O.y);
+}
+function worldToScreen(w,v=viewParams()){
+  const dx=(w.x-v.O.x)*v.Z, dy=(w.y-v.O.y)*v.Z;
+  const c=Math.cos(v.rot),s=Math.sin(v.rot);
+  return {x:dx*c-dy*s+v.cx, y:dx*s+dy*c+v.cy};
+}
+function screenToWorld(sx,sy,v=viewParams()){
+  let dx=sx-v.cx, dy=sy-v.cy;
+  const c=Math.cos(v.rot),s=Math.sin(v.rot);         // inverse rotation
+  let rx=(dx*c+dy*s)/v.Z, ry=(-dx*s+dy*c)/v.Z;
+  return {x:rx+v.O.x, y:ry+v.O.y};
 }
 
-function drawIslandShape(x,y,shape,color,glow,fe,name,labelBelow,dim){
-  ctx.save();ctx.translate(x,y);
-  if(glow){const g=ctx.createRadialGradient(0,0,4,0,0,70);
+// ---------- drawing helpers ----------
+function drawMarker(scr,color,glow,r){
+  if(glow){const g=ctx.createRadialGradient(scr.x,scr.y,2,scr.x,scr.y,r*4.2);
     g.addColorStop(0,glow);g.addColorStop(1,'transparent');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,70,0,7);ctx.fill();}
-  ctx.globalAlpha=dim?0.4:1;
-  ctx.beginPath();shape.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();
-  ctx.fillStyle=color;ctx.fill();ctx.globalAlpha=1;
-  ctx.rotate(fe*Math.PI/2);
-  ctx.fillStyle=dim?PAL.dim:PAL.faint;ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='center';
-  ctx.fillText(name,0,labelBelow?46:-38);
-  ctx.restore();
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(scr.x,scr.y,r*4.2,0,7);ctx.fill();}
+  ctx.fillStyle=color;ctx.beginPath();ctx.arc(scr.x,scr.y,r,0,7);ctx.fill();
+}
+function drawLabel(scr,name,below,dim){
+  ctx.fillStyle=dim?PAL.dim:PAL.faint;
+  ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='center';
+  ctx.fillText(name,scr.x,scr.y+(below?18:-12));
 }
 
-function drawRose(P,fe,refDeg){
-  const R=250;ctx.save();ctx.translate(P.x,P.y);ctx.globalAlpha=0.12+0.88*fe;
-  ctx.strokeStyle=PAL.roseRing;ctx.lineWidth=1/scale*0.8+0.4;
+function drawRose(Pw,v){
+  const R=200/v.Z;                          // 200 screen px in world units
+  ctx.save();ctx.translate(Pw.x,Pw.y);ctx.globalAlpha=0.12+0.88*v.fe;
+  ctx.strokeStyle=PAL.roseRing;ctx.lineWidth=1/v.Z;
   ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.stroke();
-  const cur=houseOf(refDeg);
+  const cur=houseOf(gcBearing(canoeAt(t),C));
   for(let i=0;i<32;i++){const deg=i*HOUSE;const a=(deg-90)*Math.PI/180;
-    const major=i%8===0;const len=major?16:(i%4===0?10:6);
-    ctx.strokeStyle=i===cur?PAL.amber:PAL.roseMinor;ctx.lineWidth=i===cur?2.2:1;
-    ctx.beginPath();ctx.moveTo(Math.cos(a)*(R-len),Math.sin(a)*(R-len));
+    const major=i%8===0;const lp=(major?16:(i%4===0?10:6))/v.Z;
+    ctx.strokeStyle=i===cur?PAL.amber:PAL.roseMinor;ctx.lineWidth=(i===cur?2.2:1)/v.Z;
+    ctx.beginPath();ctx.moveTo(Math.cos(a)*(R-lp),Math.sin(a)*(R-lp));
     ctx.lineTo(Math.cos(a)*R,Math.sin(a)*R);ctx.stroke();}
-  const names=[[0,'POLARIS · N'],[90,'ALTAIR RISING · E'],[180,'CRUX · S'],[270,'ALTAIR SETTING · W']];
-  ctx.fillStyle=PAL.faint;ctx.font='9.5px "IBM Plex Mono",monospace';ctx.textAlign='center';
-  for(const [deg,nm] of names){const a=(deg-90)*Math.PI/180;
-    ctx.save();ctx.translate(Math.cos(a)*(R+20),Math.sin(a)*(R+20));ctx.rotate(fe*Math.PI/2);
-    ctx.fillText(nm,0,3);ctx.restore();}
   ctx.restore();
+}
+const ROSE_LABELS=[[0,'POLARIS · N'],[90,'MAILAP RISING · E'],[180,'CRUX · S'],[270,'MAILAP SETTING · W']];
+function drawRoseLabels(Pw,v){
+  ctx.fillStyle=PAL.faint;ctx.font='9.5px "IBM Plex Mono",monospace';ctx.textAlign='center';
+  const R=(200+18)/v.Z;
+  for(const [deg,nm] of ROSE_LABELS){const a=(deg-90)*Math.PI/180;
+    const w={x:Pw.x+Math.cos(a)*R, y:Pw.y+Math.sin(a)*R};
+    const s=worldToScreen(w,v);ctx.fillText(nm,s.x,s.y+3);}
 }
 
 function draw(){
@@ -190,58 +195,73 @@ function draw(){
     ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,7);ctx.fill();}
   ctx.globalAlpha=1;
 
-  ctx.save();
-  const fe=worldTransform();
-  const P=canoeAt(t);
-  const refDeg=bearing(P,C);
+  const v=viewParams();
+  const Pw=project(canoeAt(t));
 
-  // course + etak ticks
-  ctx.strokeStyle=PAL.course+'88';ctx.lineWidth=1.5;ctx.setLineDash([6,7]);
-  ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.setLineDash([]);
-  for(const bt of boundaries){const q=canoeAt(bt);
-    ctx.strokeStyle=bt<t?PAL.amber+'99':PAL.tick;ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(q.x,q.y-9);ctx.lineTo(q.x,q.y+9);ctx.stroke();}
+  // ---- world-space pass ----
+  ctx.save();applyTransform(v);
 
-  // drift trails in navigator frame
-  if(fe>0.03){
-    for(const I of [A,B,C]){const col=I===C?PAL.amber:PAL.teal;
-      for(let k=1;k<=14;k++){const tp=t-k*0.02;if(tp<0)break;const Pp=canoeAt(tp);
-        ctx.globalAlpha=fe*(1-k/15)*0.5;ctx.fillStyle=col;
-        ctx.beginPath();ctx.arc(I.x+(P.x-Pp.x),I.y+(P.y-Pp.y),2,0,7);ctx.fill();}}
+  // coastlines
+  ctx.fillStyle=PAL.land;ctx.fill(landPath);
+  ctx.strokeStyle=PAL.coast;ctx.lineWidth=0.6/v.Z;ctx.lineJoin='round';ctx.stroke(landPath);
+
+  // course + etak ticks (perpendicular to the leg)
+  const Aw=project(A),Bw=project(B);
+  ctx.strokeStyle=PAL.course+'aa';ctx.lineWidth=1.5/v.Z;ctx.setLineDash([6/v.Z,7/v.Z]);
+  ctx.beginPath();ctx.moveTo(Aw.x,Aw.y);ctx.lineTo(Bw.x,Bw.y);ctx.stroke();ctx.setLineDash([]);
+  let px=Bw.x-Aw.x,py=Bw.y-Aw.y;const pl=Math.hypot(px,py)||1;px/=pl;py/=pl;   // unit along leg
+  const nx=-py,ny=px, tickL=9/v.Z;                                             // perpendicular
+  for(const bt of boundaries){const q=project(canoeAt(bt));
+    ctx.strokeStyle=bt<t?PAL.amber+'99':PAL.tick;ctx.lineWidth=1.5/v.Z;
+    ctx.beginPath();ctx.moveTo(q.x-nx*tickL,q.y-ny*tickL);ctx.lineTo(q.x+nx*tickL,q.y+ny*tickL);ctx.stroke();}
+
+  // drift trails (navigator) / wake (chart)
+  if(v.fe>0.03){
+    for(const I of [A,B,C]){const Iw=project(I);const col=I===C?PAL.amber:PAL.teal;
+      for(let k=1;k<=14;k++){const tp=t-k*0.02;if(tp<0)break;const Ppw=project(canoeAt(tp));
+        ctx.globalAlpha=v.fe*(1-k/15)*0.5;ctx.fillStyle=col;
+        ctx.beginPath();ctx.arc(Iw.x+(Pw.x-Ppw.x),Iw.y+(Pw.y-Ppw.y),2/v.Z,0,7);ctx.fill();}}
     ctx.globalAlpha=1;
   }
-  // wake in chart frame
-  if(fe<0.97&&t>0.005){ctx.save();ctx.globalAlpha=0.6*(1-fe);ctx.strokeStyle=PAL.teal;ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(P.x,P.y);ctx.stroke();ctx.restore();}
+  if(v.fe<0.97&&t>0.005){ctx.save();ctx.globalAlpha=0.6*(1-v.fe);ctx.strokeStyle=PAL.teal;ctx.lineWidth=2/v.Z;
+    ctx.beginPath();ctx.moveTo(Aw.x,Aw.y);ctx.lineTo(Pw.x,Pw.y);ctx.stroke();ctx.restore();}
 
-  drawRose(P,fe,refDeg);
+  drawRose(Pw,v);
 
-  // ghost candidates (puzzle mode, non-chosen) — dimmed, with faint bearing lines
+  // bearing lines: ghosts (dim) + chosen
   if(mode==='puzzle'&&puzzle){
     puzzle.candidates.forEach((cd,i)=>{
-      if(i===puzzle.chosenIndex)return;
-      ctx.strokeStyle=PAL.tick+'55';ctx.lineWidth=1;ctx.setLineDash([2,6]);
-      ctx.beginPath();ctx.moveTo(P.x,P.y);ctx.lineTo(cd.x,cd.y);ctx.stroke();ctx.setLineDash([]);
-      drawIslandShape(cd.x,cd.y,cd.shape,PAL.ghost,null,fe,cd.name,false,true);
+      if(i===puzzle.chosenIndex)return;const cw=project(cd);
+      ctx.strokeStyle=PAL.tick+'55';ctx.lineWidth=1/v.Z;ctx.setLineDash([2/v.Z,6/v.Z]);
+      ctx.beginPath();ctx.moveTo(Pw.x,Pw.y);ctx.lineTo(cw.x,cw.y);ctx.stroke();ctx.setLineDash([]);
     });
   }
+  const Cw=project(C);
+  ctx.strokeStyle=PAL.amber;ctx.lineWidth=1.6/v.Z;ctx.setLineDash([2/v.Z,5/v.Z]);
+  ctx.beginPath();ctx.moveTo(Pw.x,Pw.y);ctx.lineTo(Cw.x,Cw.y);ctx.stroke();ctx.setLineDash([]);
 
-  // chosen reference bearing
-  ctx.strokeStyle=PAL.amber;ctx.lineWidth=1.6;ctx.setLineDash([2,5]);
-  ctx.beginPath();ctx.moveTo(P.x,P.y);ctx.lineTo(C.x,C.y);ctx.stroke();ctx.setLineDash([]);
-
-  drawIslandShape(A.x,A.y,shapeA,PAL.island,null,fe,A.name,true,false);
-  drawIslandShape(B.x,B.y,shapeB,PAL.island,null,fe,B.name,true,false);
-  const cShape=(mode==='sandbox')?C.shape:puzzle.candidates[puzzle.chosenIndex].shape;
-  drawIslandShape(C.x,C.y,cShape,PAL.refFill,hexA(PAL.amber,0.18),fe,C.name,false,false);
-
-  // canoe
-  ctx.save();ctx.translate(P.x,P.y);ctx.fillStyle=PAL.starlight;
+  // canoe (points along +x world = the leg's forward-ish direction)
+  ctx.save();ctx.translate(Pw.x,Pw.y);ctx.rotate(Math.atan2(py,px));
+  ctx.scale(1/v.Z,1/v.Z);ctx.fillStyle=PAL.starlight;
   ctx.beginPath();ctx.moveTo(14,0);ctx.lineTo(-10,-7);ctx.lineTo(-6,0);ctx.lineTo(-10,7);ctx.closePath();ctx.fill();
   ctx.restore();
 
   ctx.restore();
-  updateReadout(refDeg);
+
+  // ---- screen-space pass: markers + labels (crisp, upright) ----
+  if(mode==='puzzle'&&puzzle){
+    puzzle.candidates.forEach((cd,i)=>{
+      if(i===puzzle.chosenIndex)return;const s=worldToScreen(project(cd),v);
+      drawMarker(s,PAL.ghost,null,4.5);drawLabel(s,cd.name,false,true);
+    });
+  }
+  const sA=worldToScreen(Aw,v),sB=worldToScreen(Bw,v),sC=worldToScreen(Cw,v);
+  drawMarker(sA,PAL.island,null,5);drawLabel(sA,A.name,true,false);
+  drawMarker(sB,PAL.island,null,5);drawLabel(sB,B.name,true,false);
+  drawMarker(sC,PAL.refFill,hexA(PAL.amber,0.5),5.5);drawLabel(sC,C.name,false,false);
+  drawRoseLabels(Pw,v);
+
+  updateReadout(gcBearing(canoeAt(t),C));
 }
 
 // ---------- UI ----------
@@ -251,13 +271,13 @@ function updateReadout(refDeg){
   const total=boundaries.length+1;
   const segName=total>1&&seg===total?' — etak of sighting':
                 total>2&&seg===total-1?' — etak of birds':'';
+  const distNm=gcDistNm(A,B);
   readoutEl.innerHTML=
     `etak <b class="etakN">${seg}</b> of <b>${total}</b>${segName}<br>`+
     `bearing to reference <b>${refDeg.toFixed(1).padStart(5,'0')}°</b> · house <b>${houseOf(refDeg)+1}</b>/32<br>`+
-    `voyage <b>${Math.round(t*100)}%</b>`;
+    `leg <b>${Math.round(distNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>`;
 }
 
-const scorePanel=document.getElementById('scorePanel');
 const scoreBig=document.getElementById('scoreBig');
 const cntFill=document.getElementById('cntFill'),evnFill=document.getElementById('evnFill');
 const cntVal=document.getElementById('cntVal'),evnVal=document.getElementById('evnVal');
@@ -279,12 +299,13 @@ function buildChooserUI(){
   puzzle.candidates.forEach((cd,i)=>{
     const btn=document.createElement('button');
     btn.innerHTML=`<span>${cd.name.trim()}</span><span class="sc">${cd.score.total}</span>`;
-    btn.addEventListener('click',()=>applyChoice(i,true));
+    btn.addEventListener('click',()=>applyChoice(i));
     chooserEl.appendChild(btn);
   });
 }
 
 // ---------- controls ----------
+const scorePanel=document.getElementById('scorePanel');
 const playBtn=document.getElementById('play'),scrub=document.getElementById('scrub'),speedEl=document.getElementById('speed');
 function setPlaying(p){playing=p;playBtn.textContent=p?'❚❚':'▶';}
 playBtn.addEventListener('click',()=>{if(!playing&&t>=1)t=0;setPlaying(!playing);});
@@ -304,31 +325,38 @@ function setMode(m){
   scorePanel.classList.toggle('hidden',m!=='puzzle');
   chooserEl.classList.toggle('hidden',m!=='puzzle');
   newBtn.classList.toggle('hidden',m!=='puzzle');
-  if(m==='puzzle'){subEl.textContent='Choose the reference island whose bearing best divides the voyage into etaks. Score updates live.';makePuzzle();}
-  else{subEl.textContent='Free exploration. Drag the reference island; watch how its position reshapes the etaks.';makeSandbox();}
+  if(m==='puzzle'){makePuzzle();}
+  else{subEl.textContent='Free exploration. Drag the reference island; watch how its position reshapes the etaks. Scroll to zoom, drag the sea to pan.';makeSandbox();}
 }
 mPuzzle.addEventListener('click',()=>setMode('puzzle'));
 mSandbox.addEventListener('click',()=>setMode('sandbox'));
-newBtn.addEventListener('click',()=>makePuzzle());
+newBtn.addEventListener('click',()=>{passageIndex=(passageIndex+1)%ETAK_PASSAGES.length;makePuzzle();});
 
-// ---------- sandbox drag ----------
-function screenToWorld(sx,sy){
-  const fe=ease(f);const rot=fe*(-Math.PI/2);const P=canoeAt(t);
-  let x=sx-W/2,y=sy-(H/2+(1-fe)*20);
-  const c=Math.cos(-rot),s=Math.sin(-rot);[x,y]=[x*c-y*s,x*s+y*c];x/=scale;y/=scale;
-  return {x:x+P.x*fe,y:y+P.y*fe};
-}
-let dragging=false;
+// ---------- camera + sandbox drag (chart frame) ----------
+let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | null
 canvas.addEventListener('pointerdown',e=>{
-  if(mode!=='sandbox')return;
   const w=screenToWorld(e.clientX,e.clientY);
-  if(Math.hypot(w.x-C.x,w.y-C.y)<60){dragging=true;canvas.setPointerCapture(e.pointerId);}
+  if(mode==='sandbox'){
+    const cs=worldToScreen(project(C));
+    if(Math.hypot(cs.x-e.clientX,cs.y-e.clientY)<26){dragMode='ref';canvas.setPointerCapture(e.pointerId);return;}
+  }
+  if(ease(f)<0.5){dragMode='pan';lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);}
 });
 canvas.addEventListener('pointermove',e=>{
-  if(!dragging)return;const w=screenToWorld(e.clientX,e.clientY);
-  C.x=w.x;C.y=w.y;recompute();
+  if(dragMode==='ref'){const w=screenToWorld(e.clientX,e.clientY);const p=unproject(w);C.lat=p.lat;C.lon=p.lon;recompute();}
+  else if(dragMode==='pan'){
+    const a=screenToWorld(lastX,lastY),b=screenToWorld(e.clientX,e.clientY);
+    cam.cx+=a.x-b.x;cam.cy+=a.y-b.y;lastX=e.clientX;lastY=e.clientY;
+  }
 });
-canvas.addEventListener('pointerup',()=>{dragging=false;});
+canvas.addEventListener('pointerup',()=>{dragMode=null;});
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const before=screenToWorld(e.clientX,e.clientY);
+  cam.zoom=clamp(cam.zoom*(e.deltaY<0?1.12:1/1.12),MINZOOM,MAXZOOM);
+  const after=screenToWorld(e.clientX,e.clientY);
+  cam.cx+=before.x-after.x;cam.cy+=before.y-after.y;
+},{passive:false});
 
 // ---------- loop ----------
 let last=performance.now();
@@ -340,6 +368,7 @@ function loop(now){
   draw();
   requestAnimationFrame(loop);
 }
+resize();
 setMode('puzzle');
 requestAnimationFrame(loop);
 })();
