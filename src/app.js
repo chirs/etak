@@ -395,8 +395,8 @@ function drawBoatView(cn,refDeg,cur){
     const p=altAz(ra,dec,cn.lat,lst);
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
     const y=hy-p.alt*pxDeg;if(y<14)continue;
-    ctx.fillStyle=hexA(PAL.starlight,Math.max(0.12,0.5-0.11*mag));
-    ctx.beginPath();ctx.arc(azX(p.az),y,Math.max(0.7,2.2-0.5*mag),0,7);ctx.fill();
+    ctx.fillStyle=hexA(PAL.starlight,Math.max(0.05,0.5-0.09*mag));
+    ctx.beginPath();ctx.arc(azX(p.az),y,Math.max(0.4,2.2-0.36*mag),0,7);ctx.fill();
   }
   ctx.font='9px "IBM Plex Mono",monospace';ctx.textAlign='left';
   for(const s of STAR_MAP.compass){
