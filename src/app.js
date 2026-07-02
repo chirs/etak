@@ -785,7 +785,7 @@ const storyCard=document.getElementById('storyCard');
 const storyEra=document.getElementById('storyEra'),storyTitle=document.getElementById('storyTitle');
 const storyText=document.getElementById('storyText'),storyNext=document.getElementById('storyNext');
 const storyChrome=[document.querySelector('.bar'),document.querySelector('.modeswitch'),
-                   document.querySelector('.frames'),readoutEl];
+                   document.querySelector('.frames'),readoutEl,document.getElementById('storyBtn')];
 const storySeen=()=>{try{return localStorage.getItem('etakStorySeen');}catch(_){return '1';}};
 
 function storyShowBeat(){
