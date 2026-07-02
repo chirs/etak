@@ -48,8 +48,9 @@ The full 32-point compass (Carolinian names + azimuths) is already transcribed i
       instead of a bare index; use the *tan*/*tubul* rising/setting prefixes
 - [x] Label the rose points with the real star names (all 32 when zoomed / the current house
       always; respect the myth watchlist — Mailap, not "big bird")
-- [ ] *Stretch:* east-up compass orientation option — Carolinian navigators anchor the compass on
+- [x] *Stretch:* east-up compass orientation option — Carolinian navigators anchor the compass on
       Altair with east at the top; touches `viewParams()`, so all three transform functions move together
+      — made east-up the *only* orientation (both frames); the f crossfade now blends centering only
 
 
 ## Show the etak stages

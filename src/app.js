@@ -53,7 +53,8 @@ function resize(){
   DPR=Math.min(devicePixelRatio||1,2);
   W=innerWidth;H=innerHeight;
   canvas.width=W*DPR;canvas.height=H*DPR;
-  MINZOOM=0.95*Math.min(W/(B0.lonMax-B0.lonMin), H/(B0.latMax-B0.latMin));
+  // east-up rotation maps world lon-extent to screen height, lat-extent to width
+  MINZOOM=0.95*Math.min(H/(B0.lonMax-B0.lonMin), W/(B0.latMax-B0.latMin));
   cam.zoom=clamp(cam.zoom,MINZOOM,CFG.maxZoom);
   if(A&&B) fitLeg();
 }
@@ -68,7 +69,7 @@ function fitLeg(){
   const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
   cam.cx=(minx+maxx)/2;cam.cy=(miny+maxy)/2;
   const wW=Math.max(maxx-minx,0.6),hW=Math.max(maxy-miny,0.6);
-  cam.zoom=clamp(Math.min(W*CFG.fitFrac/wW, H*CFG.fitFrac/hW), MINZOOM, CFG.maxZoom);
+  cam.zoom=clamp(Math.min(H*CFG.fitFrac/wW, W*CFG.fitFrac/hW), MINZOOM, CFG.maxZoom);   // east-up: lon→height
 }
 
 // ---------- coastlines (built once in world coords) ----------
@@ -85,6 +86,7 @@ let live=null;
 let legNm=0;               // gcDistNm(A,B), constant per leg
 let puzzle=null;           // {candidates:[{id,name,lat,lon,shape?,score}], chosenIndex}
 let passageIndex=0;
+let hoverIdx=-1;           // chooser button under the pointer (-1 = none): previews that candidate
 
 const canoeAt=tt=>gcInterp(A,B,tt);
 
@@ -146,14 +148,12 @@ function makeSandbox(){
 let t=0,playing=false,speedMul=1,f=0,fTarget=0;
 let mode='puzzle';
 
-// ---------- decorative stars ----------
-let sSeed=7;const srnd=()=>(sSeed=(sSeed*16807)%2147483647)/2147483647;
-const stars=Array.from({length:130},()=>({x:srnd(),y:srnd(),r:srnd()*1.1+0.3,p:srnd()*6.28,s:srnd()*0.7+0.3}));
-
 // ---------- view transform (single source; screenToWorld/worldToScreen invert it) ----------
 const ease=k=>k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
 function viewParams(cn=canoeAt(t)){
-  const fe=ease(f);const rot=fe*(-Math.PI/2);
+  // East-up always — the traditional Carolinian alignment (compass anchored on
+  // Altair, east at top). The f crossfade blends centering only.
+  const fe=ease(f);const rot=-Math.PI/2;
   const P=project(cn);
   const O={x:lerp(cam.cx,P.x,fe), y:lerp(cam.cy,P.y,fe)};
   return {fe,rot,O,Z:cam.zoom,cx:W/2,cy:H/2+(1-fe)*20,P};
@@ -195,7 +195,12 @@ function drawRose(Pw,v,cur){
     const major=i%8===0;const lp=(major?16:(i%4===0?10:6))/v.Z;
     ctx.strokeStyle=i===cur?PAL.amber:PAL.roseMinor;ctx.lineWidth=(i===cur?2.2:1)/v.Z;
     ctx.beginPath();ctx.moveTo(Math.cos(a)*(R-lp),Math.sin(a)*(R-lp));
-    ctx.lineTo(Math.cos(a)*R,Math.sin(a)*R);ctx.stroke();}
+    ctx.lineTo(Math.cos(a)*R,Math.sin(a)*R);ctx.stroke();
+    // house boundary: a small tick straddling the ring, half a house past the point
+    const b=(deg+HOUSE/2-90)*Math.PI/180, bl=3/v.Z;
+    ctx.strokeStyle=hexA(PAL.roseMinor,0.45);ctx.lineWidth=1/v.Z;
+    ctx.beginPath();ctx.moveTo(Math.cos(b)*(R-bl),Math.sin(b)*(R-bl));
+    ctx.lineTo(Math.cos(b)*(R+bl),Math.sin(b)*(R+bl));ctx.stroke();}
   ctx.restore();
 }
 const CARDINAL={0:'N',8:'E',16:'S',24:'W'};
@@ -216,7 +221,7 @@ function drawRoseLabels(Pw,v,cur){
     const a=(i*HOUSE-90)*Math.PI/180;
     const w={x:Pw.x+Math.cos(a)*R, y:Pw.y+Math.sin(a)*R};
     const s=worldToScreen(w,v);
-    ctx.fillStyle=i===cur?PAL.amber:cardinal?PAL.faint:PAL.dim;
+    ctx.fillStyle=i===cur?PAL.amber:hexA(PAL.dim,cardinal?0.5:0.28);
     if(showAll){   // radial, reading outward (flipped on the west side to stay upright)
       const sa=a+v.rot;const flip=Math.cos(sa)<0;
       ctx.save();ctx.translate(s.x,s.y);ctx.rotate(flip?sa+Math.PI:sa);
@@ -231,11 +236,6 @@ function drawRoseLabels(Pw,v,cur){
 function drawSky(){
   const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,PAL.night);g.addColorStop(1,PAL.night2);
   ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  const now=performance.now()/1000;
-  for(const s of stars){const tw=reduceMotion?0.75:0.55+0.45*Math.sin(now*s.s+s.p);
-    ctx.globalAlpha=0.35*tw;ctx.fillStyle=PAL.starlight;
-    ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,7);ctx.fill();}
-  ctx.globalAlpha=1;
 }
 
 function drawCoast(v){
@@ -285,6 +285,14 @@ function drawBearings(v,Pw){
       ctx.beginPath();ctx.moveTo(Pw.x,Pw.y);ctx.lineTo(cw.x,cw.y);ctx.stroke();ctx.setLineDash([]);
     });
   }
+  // hover preview: the chooser button under the pointer, ghosted in
+  if(mode==='puzzle'&&puzzle&&hoverIdx>=0&&hoverIdx!==puzzle.chosenIndex){
+    const cw=project(puzzle.candidates[hoverIdx]);
+    ctx.save();ctx.globalAlpha=0.4;
+    ctx.strokeStyle=PAL.amber;ctx.lineWidth=1.6/v.Z;ctx.setLineDash([2/v.Z,5/v.Z]);
+    ctx.beginPath();ctx.moveTo(Pw.x,Pw.y);ctx.lineTo(cw.x,cw.y);ctx.stroke();ctx.setLineDash([]);
+    ctx.restore();
+  }
   if(!C)return;
   const Cw=project(C);
   ctx.strokeStyle=PAL.amber;ctx.lineWidth=1.6/v.Z;ctx.setLineDash([2/v.Z,5/v.Z]);
@@ -299,6 +307,21 @@ function drawCanoe(v,Pw,Aw,Bw){
   ctx.restore();
 }
 
+// every gazetteer island as a small fixed-size dot + dim label, so islands
+// stay findable at any zoom (the coastline data has no rings for these atolls)
+function drawGazetteer(v){
+  const drawn=new Set([A.name,B.name]);
+  if(C)drawn.add(C.name);
+  if(mode==='puzzle'&&puzzle)puzzle.candidates.forEach(cd=>drawn.add(cd.name));
+  for(const isl of Object.values(ETAK_ISLANDS)){
+    if(drawn.has(isl.name))continue;
+    const s=worldToScreen(project(isl),v);
+    ctx.save();ctx.globalAlpha=0.75;
+    drawMarker(s,PAL.ghost,null,2.5);drawLabel(s,isl.name,false,true);
+    ctx.restore();
+  }
+}
+
 // screen-space pass: markers + labels (crisp, upright at any zoom)
 function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
   if(mode==='puzzle'&&puzzle){
@@ -306,6 +329,12 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
       if(i===puzzle.chosenIndex)return;const s=worldToScreen(project(cd),v);
       drawMarker(s,PAL.ghost,null,4.5);drawLabel(s,cd.name,false,true);
     });
+    if(hoverIdx>=0&&hoverIdx!==puzzle.chosenIndex){   // hover preview, ghosted
+      const cd=puzzle.candidates[hoverIdx],s=worldToScreen(project(cd),v);
+      ctx.save();ctx.globalAlpha=0.55;
+      drawMarker(s,PAL.refFill,hexA(PAL.amber,0.4),5.5);ctx.restore();
+      drawLabel(s,cd.name,false,false);
+    }
   }
   const sA=worldToScreen(Aw,v),sB=worldToScreen(Bw,v);
   drawMarker(sA,PAL.island,null,5);drawLabel(sA,A.name,true,false);
@@ -338,6 +367,7 @@ function draw(){
   ctx.restore();
 
   // ---- screen-space pass ----
+  drawGazetteer(v);
   drawMarkersAndLabels(v,Pw,Aw,Bw,cur);
   updateReadout(refDeg);
 }
@@ -395,11 +425,14 @@ function updateScorePanel(){
 const chooserEl=document.getElementById('chooser');
 function buildChooserUI(){
   chooserEl.querySelectorAll('button').forEach(b=>b.remove());
+  hoverIdx=-1;
   const revealed=puzzle.chosenIndex>=0;
   puzzle.candidates.forEach((cd,i)=>{
     const btn=document.createElement('button');
     btn.innerHTML=`<span>${cd.name.trim()}</span>`+(revealed?`<span class="sc">${cd.score.total}</span>`:'');
     btn.addEventListener('click',()=>applyChoice(i));
+    btn.addEventListener('mouseenter',()=>{hoverIdx=i;});
+    btn.addEventListener('mouseleave',()=>{hoverIdx=-1;});
     chooserEl.appendChild(btn);
   });
 }

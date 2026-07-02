@@ -35,10 +35,13 @@ sweeps across the 32-point sidereal "star compass" (each point is a `HOUSE = 11.
 Each time the bearing crosses into a new star house, that marks an **etak** boundary —
 segmenting the voyage into legs. A good reference island produces ~6 evenly-spaced etaks.
 
+The whole view is drawn **east-up** (world rotated −90°) — the traditional Carolinian
+alignment, compass anchored on Altair with east at the top.
+
 Two **reference frames** render the *same* voyage, cross-faded by `f` (0=chart, 1=navigator):
-- **CHART** (`f=0`): canoe moves, islands fixed — the outside/map view.
-- **NAVIGATOR** (`f=1`): canoe fixed at center, islands drift past and the world rotates −90° —
-  the Etak mental model where the reference island "moves."
+- **CHART** (`f=0`): canoe moves, islands fixed — the outside/map view (camera-centered).
+- **NAVIGATOR** (`f=1`): canoe fixed at center, islands drift past — the Etak mental model
+  where the reference island "moves." The crossfade blends centering only (rotation is constant).
 
 Two **modes**:
 - **PUZZLE**: a documented real passage with 4 real candidate islands; pick the one that best
@@ -75,13 +78,13 @@ commented sections. Key pieces and their coupling:
   (the current score object) are recomputed by `recompute()` whenever the reference changes
   (choice or drag). `t` = voyage progress 0..1; `f` = frame crossfade; `mode`.
 - **Rendering** (`draw`): a single canvas redrawn each rAF frame. `viewParams()` is the **single
-  source** for the view transform (blends the camera view toward the canoe-centered −90° navigator
-  view by `f`); `applyTransform`, `worldToScreen`, and `screenToWorld` all derive from it and must
+  source** for the view transform (east-up rotation, constant; `f` blends the camera center toward
+  the canoe); `applyTransform`, `worldToScreen`, and `screenToWorld` all derive from it and must
   stay mutual inverses — **change one, change all.** `draw()` computes the per-frame values once
   (canoe position, canoe→ref bearing, `v` — `viewParams(cn)` takes the precomputed canoe point and
   returns its projection as `v.P`) and delegates to named layer functions in paint order:
-  `drawSky` → world pass (`drawCoast`, `drawCourse`, `drawTrails`, `drawRose`, `drawBearings`,
-  `drawCanoe`, all under `applyTransform(v)`) → screen pass (`drawMarkersAndLabels`, via
+  `drawSky` → world pass (`drawCoast`, `drawRangeRings`, `drawCourse`, `drawTrails`, `drawRose`, `drawBearings`,
+  `drawCanoe`, all under `applyTransform(v)`) → screen pass (`drawGazetteer`, `drawMarkersAndLabels`, via
   `worldToScreen`, so text stays crisp and upright at any zoom). A new visual feature should be a
   new layer function slotted into that order. Screen-constant sizes are `pixels / v.Z` in world units.
 - **Loop**: `requestAnimationFrame(loop)` advances `t` when playing and eases `f` toward `fTarget`.
@@ -105,4 +108,4 @@ commented sections. Key pieces and their coupling:
   recomputation of leg constants.
 - Regenerate `map-data.js` only via `tools/build_map.py`; never hand-edit it. To widen/shift the
   chart, change the bounds/tolerance constants at the top of that script and re-run.
-- `reduceMotion` (prefers-reduced-motion) gates star twinkle and frame-ease speed; preserve it.
+- `reduceMotion` (prefers-reduced-motion) gates the frame-ease speed; preserve it.
