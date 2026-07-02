@@ -141,6 +141,7 @@ independently re-checked in this pass.
 | **Puluwat** (Poluwat) | 7.3543 | 149.2002 | [verified] | Chuuk State; ~pop 400 (1960s). Gladwin's field site. |
 | **Pulusuk** | 6.6898 | 149.3021 | [verified] | Pattiw (Western Is.) group; ~152 mi W of Chuuk. |
 | **Satawal** | 7.3579 | 147.0373 | [verified] | Yap State; solitary atoll, ~pop 500. Piailug's home. |
+| **Pisaras** | 8.5690 | 150.4185 | [verified] | Easternmost islet of Namonuito Atoll, Chuuk State (8°34′08″N 150°25′07″E). The reference island for the Puluwat→Truk run — sits ~1.2° N of and midway along that course. |
 | **Lamotrek** | 7.4833 | 146.3333 | [verified] | Yap State; ~6.8 mi E of Elato. |
 | Pikelot | 8.08 | 147.62 | [atlas] | uninhabited; turtle/bird island NW of Satawal. |
 | West Fayu | 8.08 | 146.72 | [atlas] | uninhabited islet. |
