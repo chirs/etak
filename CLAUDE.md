@@ -50,8 +50,8 @@ discrete third state faded through night by `b` (different projection — no ble
   where the reference island "moves." The crossfade blends centering only (rotation is constant).
 - **BOAT** (`b=1`): the horizon from the canoe (`drawBoatView`) — a first-person window of
   `CFG.fov` (110°) of azimuth, centered on the course heading plus the gaze offset `look`
-  (drag the canvas or use ←/→, one house per press, to turn a full 360°; gaze resets to dead
-  ahead on boarding). Star houses ticked along the horizon line, the reference island's caret
+  (drag the canvas or use ←/→, `CFG.lookStep` degrees per press, to turn a full 360°; gaze
+  resets to dead ahead on boarding). Star houses ticked along the horizon line, the reference island's caret
   sliding across them (one etak = one house); the wireframe bow anchors to the *heading*
   azimuth, so it leaves the frame when you look abeam. The sky above is the real one
   (`STAR_MAP` + `EtakCore.altAz`), rotating with sailing time (`t · legNm / CFG.canoeKn` hours

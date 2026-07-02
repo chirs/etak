@@ -43,6 +43,7 @@ const CFG={
   bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
   seaVanish:1.15,               // boat view: sea-grid vanishing point depth, fraction of H
   milkyN:4500,                  // boat view: milky-way dust points, scattered once at load
+  lookStep:10,                  // boat view: gaze swing per arrow-key press, degrees
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -676,11 +677,11 @@ document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget
 document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;frameHint.textContent='same voyage, three frames';frameActive(e.target);});
 document.getElementById('fBoat').addEventListener('click',e=>{bTarget=1;look=0;frameHint.textContent='drag the sea to look around';frameActive(e.target);});
 
-// arrow keys swing the gaze one star house at a time while aboard
+// arrow keys swing the gaze while aboard
 addEventListener('keydown',e=>{
   if(bTarget!==1||e.target.tagName==='INPUT')return;
-  if(e.key==='ArrowLeft'){look-=HOUSE;e.preventDefault();}
-  else if(e.key==='ArrowRight'){look+=HOUSE;e.preventDefault();}
+  if(e.key==='ArrowLeft'){look-=CFG.lookStep;e.preventDefault();}
+  else if(e.key==='ArrowRight'){look+=CFG.lookStep;e.preventDefault();}
 });
 function frameActive(btn){document.querySelectorAll('.frames button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
 
