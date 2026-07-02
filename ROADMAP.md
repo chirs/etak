@@ -117,6 +117,9 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
       blurbs for the Caroline gazetteer)
 - [ ] Label collision at minimum zoom — the Carolines cluster overlaps when the whole
       ocean is framed; gate dates (or labels) by zoom the way the rose does
+- [ ] Merge Natural Earth `ne_10m_minor_islands` into `build_map.py` — Lamotrek (and other
+      ~1 km² atolls like West Fayu, Elato, Pikelot) are absent from `ne_10m_land` entirely,
+      so they render as dots with no coastline even in the fine region
 
 
 ## Second act — from simulator to game
