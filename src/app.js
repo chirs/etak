@@ -419,9 +419,10 @@ function drawBoatView(cn,refDeg,cur){
 
   // the actual sky: field stars + named compass stars, turning with sailing time.
   // Atmospheric extinction: airmass (≈1/sin alt, capped at the true horizon value
-  // ~38) dims stars toward the sea line by 10^(-0.4·k·(X−1)), k=0.25 mag/airmass.
+  // ~38) dims stars toward the sea line by 10^(-0.4·k·(X−1)). k here is well under
+  // the physical ~0.25 mag/airmass — gentler than nature so the low sky stays alive.
   const lst=(gmst(voyageMs()/86400000+2440587.5)+cn.lon)%360;
-  const dimAt=alt=>Math.pow(10,-0.1*(1/Math.sin(Math.max(alt,1.5)*Math.PI/180)-1));
+  const dimAt=alt=>Math.pow(10,-0.03*(1/Math.sin(Math.max(alt,1.5)*Math.PI/180)-1));
 
   // milky way: a soft glow along the galactic equator under a scatter of dust,
   // clipped to the sky so the band can run right down to the sea line
