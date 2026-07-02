@@ -117,7 +117,6 @@ function makePuzzle(){
   subEl.textContent=`${pas.name} — ${pas.note}`;
   buildChooserUI();
   fitLeg();
-  scorePanel.classList.add('hidden');
   t=0;scrub.value=0;setPlaying(false);
 }
 
@@ -128,8 +127,8 @@ function applyChoice(i){
   C={lat:cand.lat,lon:cand.lon,name:cand.name};
   recompute();
   if(firstPick)buildChooserUI();        // rebuild with all four scores revealed
-  scorePanel.classList.remove('hidden');
   [...chooserEl.querySelectorAll('button')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
+  updateScorePanel();                   // re-seat the detail under the (possibly rebuilt) button
   t=0;scrub.value=0;setPlaying(false);
 }
 
@@ -497,19 +496,16 @@ function buildEtakStrip(){
   etakStrip.innerHTML=boundaries.map(b=>`<i style="left:${(b*100).toFixed(2)}%"></i>`).join('');
 }
 
-const scoreBig=document.getElementById('scoreBig');
-const cntFill=document.getElementById('cntFill'),evnFill=document.getElementById('evnFill');
-const cntVal=document.getElementById('cntVal'),evnVal=document.getElementById('evnVal');
-const verdictEl=document.getElementById('verdict');
-function gradeColor(v){return v>=0.75?'var(--good)':v>=0.45?'var(--teal)':'var(--bad)';}
+// compact score line tucked under the chosen candidate's button
+const scoreDetail=document.createElement('div');
+scoreDetail.className='detail';
 function updateScorePanel(){
-  if(!live)return;
-  scoreBig.innerHTML=`${live.total}<span>/100</span>`;
-  cntFill.style.width=(live.count*100)+'%';cntFill.style.background=gradeColor(live.count);
-  evnFill.style.width=(live.even*100)+'%';evnFill.style.background=gradeColor(live.even);
-  cntVal.textContent=live.segs+' etaks';
-  evnVal.textContent=Math.round(live.even*100)+'%';
-  verdictEl.textContent=verdictText(live);
+  if(!live||mode!=='puzzle'||!puzzle||puzzle.chosenIndex<0){scoreDetail.remove();return;}
+  scoreDetail.innerHTML=
+    `<b>${live.total}</b>/100 · ${live.segs} etak${live.segs===1?'':'s'} · evenness ${Math.round(live.even*100)}%<br>`+
+    verdictText(live);
+  const btn=chooserEl.querySelectorAll('button')[puzzle.chosenIndex];
+  if(btn)btn.after(scoreDetail);
 }
 
 const chooserEl=document.getElementById('chooser');
@@ -528,7 +524,6 @@ function buildChooserUI(){
 }
 
 // ---------- controls ----------
-const scorePanel=document.getElementById('scorePanel');
 const playBtn=document.getElementById('play'),scrub=document.getElementById('scrub'),speedEl=document.getElementById('speed');
 function setPlaying(p){playing=p;playBtn.textContent=p?'❚❚':'▶';}
 playBtn.addEventListener('click',()=>{if(!playing&&t>=1)t=0;setPlaying(!playing);});
@@ -546,7 +541,6 @@ function setMode(m){
   mode=m;
   mPuzzle.classList.toggle('active',m==='puzzle');
   mSandbox.classList.toggle('active',m==='sandbox');
-  scorePanel.classList.toggle('hidden',m!=='puzzle');
   chooserEl.classList.toggle('hidden',m!=='puzzle');
   newBtn.classList.toggle('hidden',m!=='puzzle');
   if(m==='puzzle'){makePuzzle();}
