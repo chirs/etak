@@ -40,6 +40,20 @@ FINE_LAT_MIN, FINE_LAT_MAX = 4.0, 16.5
 FINE_TOL = 0.002                     # ~220 m — keeps 1 km islets like Pisaras alive
 FINE_MIN_RING_AREA = 0.000005
 
+# Mid-detail boxes: the settlement-story landfalls (ETAK_PLACES in
+# src/passages.js — keep in sync) whose islands are real but smaller than the
+# coarse MIN_RING_AREA, so the settlement map has land under its labels.
+# (lon360 min, lon360 max, lat min, lat max)
+MID_BOXES = [
+    (157.0, 159.5, 5.8, 7.5),        # Pohnpei
+    (165.0, 168.0, -12.5, -9.5),     # Santa Cruz group (Nendö)
+    (183.0, 187.0, -22.5, -18.0),    # Tonga (Tongatapu, Haʻapai, Vavaʻu)
+    (218.5, 222.5, -11.0, -7.5),     # Marquesas
+    (250.0, 251.5, -27.6, -26.8),    # Rapa Nui
+]
+MID_TOL = 0.01                       # ~1.1 km — island shapes, not atoll islets
+MID_MIN_RING_AREA = 0.0005          # deg^2; ~6 km² — keeps the main islands only
+
 
 def fetch():
     if not os.path.exists(CACHE):
@@ -173,11 +187,16 @@ def main():
                     continue
                 cx = sum(p[0] for p in clipped) / len(clipped)
                 cy = sum(p[1] for p in clipped) / len(clipped)
-                fine = (FINE_LON_MIN <= cx <= FINE_LON_MAX and
-                        FINE_LAT_MIN <= cy <= FINE_LAT_MAX)
-                simp = simplify(clipped, FINE_TOL if fine else SIMPLIFY_TOL)
-                if len(simp) < 3 or ring_area(simp) < (
-                        FINE_MIN_RING_AREA if fine else MIN_RING_AREA):
+                if (FINE_LON_MIN <= cx <= FINE_LON_MAX and
+                        FINE_LAT_MIN <= cy <= FINE_LAT_MAX):
+                    tol, min_area = FINE_TOL, FINE_MIN_RING_AREA
+                elif any(x0 <= cx <= x1 and y0 <= cy <= y1
+                         for x0, x1, y0, y1 in MID_BOXES):
+                    tol, min_area = MID_TOL, MID_MIN_RING_AREA
+                else:
+                    tol, min_area = SIMPLIFY_TOL, MIN_RING_AREA
+                simp = simplify(clipped, tol)
+                if len(simp) < 3 or ring_area(simp) < min_area:
                     continue
                 polys.append([[round(x, 3), round(y, 3)] for x, y in simp])
                 break  # outer ring only — holes are invisible on a dark chart
