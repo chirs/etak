@@ -77,10 +77,13 @@ commented sections. Key pieces and their coupling:
 - **Rendering** (`draw`): a single canvas redrawn each rAF frame. `viewParams()` is the **single
   source** for the view transform (blends the camera view toward the canoe-centered −90° navigator
   view by `f`); `applyTransform`, `worldToScreen`, and `screenToWorld` all derive from it and must
-  stay mutual inverses — **change one, change all.** Geometry (coastlines, course, ticks, rose,
-  bearing lines, trails, canoe) draws under the world transform; island markers, labels, and rose
-  cardinal labels draw in a screen-space pass (via `worldToScreen`) so text stays crisp and upright
-  at any zoom. Screen-constant sizes are `pixels / v.Z` in world units.
+  stay mutual inverses — **change one, change all.** `draw()` computes the per-frame values once
+  (canoe position, canoe→ref bearing, `v` — `viewParams(cn)` takes the precomputed canoe point and
+  returns its projection as `v.P`) and delegates to named layer functions in paint order:
+  `drawSky` → world pass (`drawCoast`, `drawCourse`, `drawTrails`, `drawRose`, `drawBearings`,
+  `drawCanoe`, all under `applyTransform(v)`) → screen pass (`drawMarkersAndLabels`, via
+  `worldToScreen`, so text stays crisp and upright at any zoom). A new visual feature should be a
+  new layer function slotted into that order. Screen-constant sizes are `pixels / v.Z` in world units.
 - **Loop**: `requestAnimationFrame(loop)` advances `t` when playing and eases `f` toward `fTarget`.
 
 ## Editing conventions here
@@ -94,6 +97,12 @@ commented sections. Key pieces and their coupling:
   translucency). Add or change a color in `:root`, not in the drawing code.
 - `viewParams()` (in `app.js`) is the one place the view transform is defined; `applyTransform`,
   `worldToScreen`, and `screenToWorld` all derive from it and must stay mutual inverses.
+- **Tuning constants live in `CFG`** (top of `app.js`, next to `PAL`): rose radius, trail
+  count/spacing, playback rate, zoom step, drag hit radius, fit fraction, max zoom, crossfade
+  speeds. Put new magic numbers there, not inline in drawing/interaction code.
+- The readout only rewrites its `innerHTML` when the composed string changes (`lastReadout`), and
+  per-leg values (`legNm`) are cached in `recompute()` — don't reintroduce per-frame DOM writes or
+  recomputation of leg constants.
 - Regenerate `map-data.js` only via `tools/build_map.py`; never hand-edit it. To widen/shift the
   chart, change the bounds/tolerance constants at the top of that script and re-run.
 - `reduceMotion` (prefers-reduced-motion) gates star twinkle and frame-ease speed; preserve it.

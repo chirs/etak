@@ -1,6 +1,7 @@
 # Etak
 
-An interactive canvas visualization of Micronesian star-path (*etak*) navigation.
+An interactive canvas visualization of Micronesian star-path (*etak*) navigation, drawn over a
+real, zoomable chart of the Pacific (Natural Earth coastlines, scroll to zoom, drag to pan).
 
 A canoe sails a straight leg from home to destination while a **reference island** sits off to
 the side. As the canoe advances, the bearing to that island sweeps across the 32-point sidereal
@@ -16,9 +17,12 @@ The visualization renders the same voyage in **two reference frames**:
 
 ## Modes
 
-- **Puzzle** — four candidate reference islands; choose the one that best segments the voyage.
-  A live score rates each on etak *count* and *evenness*.
-- **Sandbox** — drag a single reference island and watch how its position reshapes the etaks.
+- **Puzzle** — a documented real passage (e.g. Puluwat → Chuuk, Gladwin's worked example) with
+  four real Caroline Islands as candidate references; choose the one that best segments the
+  voyage. A live score rates each on etak *count* and *evenness*. All bearings and distances are
+  true great-circle values.
+- **Sandbox** — drag a single hypothetical reference island and watch how its position reshapes
+  the etaks.
 
 ## Running
 
@@ -30,3 +34,14 @@ python3 -m http.server --directory src
 ```
 
 (Typography loads from Google Fonts, so a network connection gives the intended look.)
+
+## Tests
+
+The spherical geometry/scoring core has a Node test suite (no dependencies):
+
+```sh
+node --test 'tests/**/*.test.mjs'
+```
+
+Sources for the passages, island coordinates, and star-compass points are documented in
+[`docs/sources.md`](docs/sources.md).
