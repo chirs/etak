@@ -11,6 +11,9 @@
 - [ ] UI redesign - unify, less messy
 - [x] Clickable star labels (info? distance? names?)
 - [ ] Constellations
+- [ ] **Authentic canoe** — collect reference drawings/photos of the real boats (the Carolinian
+      proa: single outrigger, crab-claw sail, double-ended shunting hull) into `docs/`, then
+      reshape the boat-view hull silhouette to match — is a generic yacht bow even right?
 - [x] Make ocean prettier - mesh, pseudo-waves
 - [ ] Voyage picker!
 

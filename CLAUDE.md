@@ -54,11 +54,14 @@ discrete third state faded through night by `b` (different projection — no ble
   `CFG.fov` (110°) of azimuth, centered on the course heading plus the gaze offset `look`
   (drag the canvas or use ←/→, `CFG.lookStep` degrees per press, to turn a full 360°; drag
   vertically or use ↑/↓ to tilt the gaze `pitch` up to the zenith; both reset on boarding). Star houses ticked along the horizon line, the reference island's caret
-  sliding across them (one etak = one house); the wireframe bow anchors to the *heading*
-  azimuth, so it leaves the frame when you look abeam. The sky above is the real one
+  sliding across them (one etak = one house); the solid hull silhouette anchors to the
+  *heading* azimuth, so it leaves the frame when you look abeam, and occludes the rolling
+  swell lines that undulate below the horizon (`CFG.swell*`). The sky above is the real one
   (`STAR_MAP` + `EtakCore.altAz`), rotating with sailing time (`t · legNm / CFG.canoeKn` hours
   from a departure anchored by `CFG.depart`, adjustable while aboard via the departure
   picker, which repositions the whole sky); the current house's physical star glows amber.
+  A still click picks the nearest named compass star (via `starHits`, refreshed each frame)
+  and opens its card (`#starCard`): names, live alt/bearing, rise/set azimuths, houses.
   Pure screen space; chart pan/zoom are disabled while active.
 
 Three **modes**:
@@ -116,7 +119,7 @@ commented sections. Key pieces and their coupling:
   stay mutual inverses — **change one, change all.** `draw()` computes the per-frame values once
   (canoe position, canoe→ref bearing, `v` — `viewParams(cn)` takes the precomputed canoe point and
   returns its projection as `v.P`) and delegates to named layer functions in paint order:
-  `drawSky` → world pass (`drawCoast`, `drawRangeRings`, `drawCourse`, `drawTrails`, `drawRose`, `drawBearings`,
+  `drawSky` → `drawOcean` (screen-space swell lines, world-anchored phase) → world pass (`drawCoast`, `drawRangeRings`, `drawCourse`, `drawTrails`, `drawRose`, `drawBearings`,
   `drawCanoe`, all under `applyTransform(v)`) → screen pass (`drawGazetteer`, `drawMarkersAndLabels`, via
   `worldToScreen`, so text stays crisp and upright at any zoom). A new visual feature should be a
   new layer function slotted into that order. Screen-constant sizes are `pixels / v.Z` in world units.

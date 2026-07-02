@@ -9,11 +9,14 @@ star compass — and each time it crosses into a new star "house" (an 11.25° we
 **etak**, dividing the voyage into legs. A well-placed reference island produces a handful of
 even, easy-to-feel etaks; a poorly-placed one gives too few divisions or a confetti of tiny ones.
 
-The visualization renders the same voyage in **two reference frames**:
+The visualization renders the same voyage in **three reference frames**:
 
 - **Chart** — the canoe moves, the islands are fixed (the outside map view).
 - **Navigator** — the canoe is fixed and the islands drift past, the way the etak system is
   actually held in the mind.
+- **Boat** — the horizon from the deck: the real night sky (Yale Bright Star Catalog, Moon,
+  naked-eye planets) turning with sailing time, star houses ticked along the horizon, rolling
+  swell below it. Drag to look around; click a named compass star for its card.
 
 ## Modes
 
@@ -23,6 +26,8 @@ The visualization renders the same voyage in **two reference frames**:
   true great-circle values.
 - **Sandbox** — drag a single hypothetical reference island and watch how its position reshapes
   the etaks.
+- **Settlement** — the migration story as an explorable map: every voyage of the Pacific
+  expansion on a year timeline (~2350 BCE → 1250 CE), with era flights and clickable landfalls.
 
 ## Running
 

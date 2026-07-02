@@ -732,15 +732,17 @@ function drawBoatView(cn,refDeg,cur){
     caret(x,PAL.amber);name(x,hy+24,C.name,PAL.amber);
   }
 
-  // bow: two mirrored wireframe curves anchored at the heading azimuth — it's
-  // part of the boat, so it slides out of frame when you look abeam
+  // bow: a solid hull silhouette under the wireframe curves, anchored at the
+  // heading azimuth — it's part of the boat, so it slides out of frame when you
+  // look abeam. The fill occludes the swell: no water through the prow.
   if(inView(relAz(hdg))){
     const bx=azX(hdg), bw=W*CFG.bowW, bh=H*CFG.bowH, by=H+pitch*pxDeg;
-    ctx.strokeStyle=hexA(PAL.starlight,0.35);ctx.lineWidth=1.5;
-    for(const s of [1,-1]){
-      ctx.beginPath();ctx.moveTo(bx+s*bw,by+2);
-      ctx.quadraticCurveTo(bx+s*bw*0.35,by-bh*0.55,bx,by-bh);ctx.stroke();
-    }
+    const hull=new Path2D();
+    hull.moveTo(bx-bw,by+2);
+    hull.quadraticCurveTo(bx-bw*0.35,by-bh*0.55,bx,by-bh);
+    hull.quadraticCurveTo(bx+bw*0.35,by-bh*0.55,bx+bw,by+2);
+    ctx.fillStyle=PAL.night;ctx.fill(hull);
+    ctx.strokeStyle=hexA(PAL.starlight,0.35);ctx.lineWidth=1.5;ctx.stroke(hull);
   }
 }
 
