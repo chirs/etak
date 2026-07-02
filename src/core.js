@@ -1,21 +1,53 @@
-// Pure geometry + scoring core for Etak. No DOM, no canvas — just math over
-// {x,y} points. Consumed by app.js as the global `EtakCore`.
+// Pure geometry + scoring core for Etak. No DOM, no canvas, no projection —
+// just spherical math over {lat,lon} points (degrees). Consumed by app.js as
+// the global `EtakCore`.
 const EtakCore = (() => {
 'use strict';
 
 const HOUSE = 11.25;       // degrees per star-compass house (360 / 32)
 const SWEET = 6;           // ideal etak count for a leg of this length
+const R_NM  = 3440.065;    // Earth radius in nautical miles
 
 const lerp=(a,b,k)=>a+(b-a)*k;
-function bearing(p,q){const d=Math.atan2(q.x-p.x,-(q.y-p.y))*180/Math.PI;return (d+360)%360;}
+const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+
+// initial great-circle bearing p->q, degrees clockwise from true north (0..360)
+function gcBearing(p,q){
+  const φ1=rad(p.lat),φ2=rad(q.lat),Δλ=rad(q.lon-p.lon);
+  const y=Math.sin(Δλ)*Math.cos(φ2);
+  const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+  return (deg(Math.atan2(y,x))+360)%360;
+}
+
+// great-circle distance p->q in nautical miles
+function gcDistNm(p,q){
+  const φ1=rad(p.lat),φ2=rad(q.lat),Δφ=rad(q.lat-p.lat),Δλ=rad(q.lon-p.lon);
+  const a=Math.sin(Δφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R_NM*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// point at fraction k along the great circle p->q (spherical interpolation)
+function gcInterp(p,q,k){
+  const φ1=rad(p.lat),λ1=rad(p.lon),φ2=rad(q.lat),λ2=rad(q.lon);
+  const Δφ=φ2-φ1,Δλ=λ2-λ1;
+  const a=Math.sin(Δφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  const δ=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  if(δ<1e-9) return {lat:p.lat,lon:p.lon};       // coincident points
+  const A=Math.sin((1-k)*δ)/Math.sin(δ), B=Math.sin(k*δ)/Math.sin(δ);
+  const x=A*Math.cos(φ1)*Math.cos(λ1)+B*Math.cos(φ2)*Math.cos(λ2);
+  const y=A*Math.cos(φ1)*Math.sin(λ1)+B*Math.cos(φ2)*Math.sin(λ2);
+  const z=A*Math.sin(φ1)+B*Math.sin(φ2);
+  return {lat:deg(Math.atan2(z,Math.hypot(x,y))),lon:deg(Math.atan2(y,x))};
+}
+
 const houseOf=deg=>Math.floor(((deg+HOUSE/2)%360)/HOUSE);
 
 // count the star-house crossings of bearing(canoe->ref) along the leg, return boundary t's
 function boundariesFor(A,B,ref){
-  const at=tt=>({x:lerp(A.x,B.x,tt),y:lerp(A.y,B.y,tt)});
-  const out=[];let prev=houseOf(bearing(at(0),ref));
+  const at=tt=>gcInterp(A,B,tt);
+  const out=[];let prev=houseOf(gcBearing(at(0),ref));
   const N=2000;
-  for(let i=1;i<=N;i++){const tt=i/N;const h=houseOf(bearing(at(tt),ref));
+  for(let i=1;i<=N;i++){const tt=i/N;const h=houseOf(gcBearing(at(tt),ref));
     if(h!==prev){out.push(tt);prev=h;}}
   return out;
 }
@@ -46,5 +78,9 @@ function verdictText(s){
   return 'Workable. The bearing opens at a usable rate across the leg.';
 }
 
-return {HOUSE,SWEET,lerp,bearing,houseOf,boundariesFor,scoreFor,verdictText};
+return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,boundariesFor,scoreFor,verdictText};
 })();
+
+// Node/test interop: expose as a module export when running under CommonJS/ESM
+// bridges. Harmless in the browser (no `module` global there).
+if (typeof module !== 'undefined' && module.exports) module.exports = EtakCore;
