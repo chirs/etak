@@ -5,15 +5,14 @@
 > Holton et al. 2015). Details and citations in `docs/sources.md`.
 
 
-## Ship it
+## Intermezzo
 
-- [ ] **Publish** — GitHub Pages serving `src/` so people can actually sail it (site becomes
-      public; enable Pages, no build step needed)
-- [ ] **URL state / permalinks** — encode mode, passage, `t`, frame, and the settlement
-      year/era in the hash so a shared link lands on "look at this moment" and a refresh
-      doesn't reset to the story; pairs with Publish
-- [ ] **Touch/mobile pass** — everything is desktop-first; check the story cards, boat-view
-      drag, the chooser, and the settlement card/era list on a phone
+- [ ] Reduce maximum zoom out to full screen
+- [ ] UI redesign - unify, less messy
+- [ ] Clickable star labels (info? distance? names?)
+- [ ] Constellations
+- [ ] Make ocean prettier - mesh, pseudo-waves
+- [ ] Voyage picker!
 
 
 ## Second act — from simulator to game
