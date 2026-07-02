@@ -40,5 +40,48 @@ const ETAK_PASSAGES = [
   },
 ];
 
+// The 32 star houses, clockwise from north; index matches EtakCore.houseOf.
+// Puluwat/Satawal names transcribed from Goodenough & Thomas (1987) — see
+// docs/sources.md §1. The native compass is conventional (evenly spaced points,
+// Altair rising called "due east"), so each 11.25° wedge is labeled with the
+// conventional point name, not the star's true azimuth. `car` is null where the
+// source gives no independent Carolinian name (Dubhe, the Máálap wing stars, the
+// Crux elevations). `pre` is the rising/setting prefix: `tan` rises, `tubul` sets;
+// the anchors and Crux elevations take none.
+const ETAK_COMPASS = [
+  { car: 'Fúsemakut',       pre: '',      star: 'Polaris' },            //  0 · N
+  { car: 'Maylap-en-efeng', pre: 'tan',   star: 'Kochab rising' },
+  { car: null,              pre: '',      star: 'Dubhe rising' },
+  { car: 'Úgúlúg',          pre: 'tan',   star: 'Cassiopeia rising' },
+  { car: 'Máán',            pre: 'tan',   star: 'Vega rising' },
+  { car: 'Maríger',         pre: 'tan',   star: 'Pleiades rising' },
+  { car: 'Úún',             pre: 'tan',   star: 'Aldebaran rising' },
+  { car: null,              pre: '',      star: 'Tarazed rising' },
+  { car: 'Máálap',          pre: 'tan',   star: 'Altair rising' },      //  8 · E
+  { car: null,              pre: '',      star: 'Alshain rising' },
+  { car: 'Elúél',           pre: 'tan',   star: 'Orion’s Belt rising' },
+  { car: 'Sárapúl',         pre: 'tan',   star: 'Corvus rising' },
+  { car: 'Túmur',           pre: 'tan',   star: 'Antares rising' },
+  { car: 'Mesáárú',         pre: 'tan',   star: 'Shaula rising' },
+  { car: 'Wénéwén',         pre: 'tan',   star: 'Crux rising' },
+  { car: null,              pre: '',      star: 'Crux at 45° east' },
+  { car: 'Wénéwén',         pre: '',      star: 'Crux upright' },       // 16 · S
+  { car: null,              pre: '',      star: 'Crux at 45° west' },
+  { car: 'Wénéwén',         pre: 'tubul', star: 'Crux setting' },
+  { car: 'Mesáárú',         pre: 'tubul', star: 'Shaula setting' },
+  { car: 'Túmur',           pre: 'tubul', star: 'Antares setting' },
+  { car: 'Sárapúl',         pre: 'tubul', star: 'Corvus setting' },
+  { car: 'Elúél',           pre: 'tubul', star: 'Orion’s Belt setting' },
+  { car: null,              pre: '',      star: 'Alshain setting' },
+  { car: 'Máálap',          pre: 'tubul', star: 'Altair setting' },     // 24 · W
+  { car: null,              pre: '',      star: 'Tarazed setting' },
+  { car: 'Úún',             pre: 'tubul', star: 'Aldebaran setting' },
+  { car: 'Maríger',         pre: 'tubul', star: 'Pleiades setting' },
+  { car: 'Máán',            pre: 'tubul', star: 'Vega setting' },
+  { car: 'Úgúlúg',          pre: 'tubul', star: 'Cassiopeia setting' },
+  { car: null,              pre: '',      star: 'Dubhe setting' },
+  { car: 'Maylap-en-efeng', pre: 'tubul', star: 'Kochab setting' },
+];
+
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { ETAK_ISLANDS, ETAK_PASSAGES };
+  module.exports = { ETAK_ISLANDS, ETAK_PASSAGES, ETAK_COMPASS };

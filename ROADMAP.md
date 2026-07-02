@@ -44,9 +44,9 @@ Findings collected in [`docs/sources.md`](docs/sources.md) (fact-checked, confid
 The full 32-point compass (Carolinian names + azimuths) is already transcribed in
 `docs/sources.md` §1 — the app currently uses only the four cardinal labels.
 
-- [ ] Name the current star house in the readout — e.g. "house 6/32 — *tan* Máán (Vega rising)"
+- [x] Name the current star house in the readout — e.g. "house 6/32 — *tan* Máán (Vega rising)"
       instead of a bare index; use the *tan*/*tubul* rising/setting prefixes
-- [ ] Label the rose points with the real star names (all 32 when zoomed / the current house
+- [x] Label the rose points with the real star names (all 32 when zoomed / the current house
       always; respect the myth watchlist — Mailap, not "big bird")
 - [ ] *Stretch:* east-up compass orientation option — Carolinian navigators anchor the compass on
       Altair with east at the top; touches `viewParams()`, so all three transform functions move together

@@ -31,6 +31,7 @@ const CFG={
   playRate:0.03,                // voyage fraction per second at speed 1
   refHitR:26,                   // sandbox reference drag hit radius, screen px
   birdsNm:16.2,                 // "etak of birds" ring radius, ~30 km (docs/sources.md §2)
+  roseNames:50,                 // zoom (px/deg) above which all 32 house names label the rose
   zoomStep:1.12,                // wheel zoom factor per notch
   fEase:2.6, fEaseReduced:8,    // frame-crossfade speed (reduced motion: near-instant)
 };
@@ -197,13 +198,33 @@ function drawRose(Pw,v,cur){
     ctx.lineTo(Math.cos(a)*R,Math.sin(a)*R);ctx.stroke();}
   ctx.restore();
 }
-const ROSE_LABELS=[[0,'POLARIS · N'],[90,'MAILAP RISING · E'],[180,'CRUX · S'],[270,'MAILAP SETTING · W']];
-function drawRoseLabels(Pw,v){
-  ctx.fillStyle=PAL.faint;ctx.font='9.5px "IBM Plex Mono",monospace';ctx.textAlign='center';
+const CARDINAL={0:'N',8:'E',16:'S',24:'W'};
+function roseName(i){
+  const c=ETAK_COMPASS[i];
+  let s=(c.car?(c.pre?c.pre+' ':'')+c.car:c.star).toUpperCase();
+  if(CARDINAL[i]!==undefined)s+=' · '+CARDINAL[i];
+  return s;
+}
+// house names around the ring: cardinals + current house always, all 32 when zoomed in
+function drawRoseLabels(Pw,v,cur){
+  ctx.font='9.5px "IBM Plex Mono",monospace';
   const R=(CFG.roseR+CFG.roseLabelPad)/v.Z;
-  for(const [deg,nm] of ROSE_LABELS){const a=(deg-90)*Math.PI/180;
+  const showAll=v.Z>=CFG.roseNames;
+  for(let i=0;i<32;i++){
+    const cardinal=i%8===0;
+    if(!showAll&&i!==cur&&!cardinal)continue;
+    const a=(i*HOUSE-90)*Math.PI/180;
     const w={x:Pw.x+Math.cos(a)*R, y:Pw.y+Math.sin(a)*R};
-    const s=worldToScreen(w,v);ctx.fillText(nm,s.x,s.y+3);}
+    const s=worldToScreen(w,v);
+    ctx.fillStyle=i===cur?PAL.amber:cardinal?PAL.faint:PAL.dim;
+    if(showAll){   // radial, reading outward (flipped on the west side to stay upright)
+      const sa=a+v.rot;const flip=Math.cos(sa)<0;
+      ctx.save();ctx.translate(s.x,s.y);ctx.rotate(flip?sa+Math.PI:sa);
+      ctx.textAlign=flip?'right':'left';ctx.fillText(roseName(i),0,3);ctx.restore();
+    }else{
+      ctx.textAlign='center';ctx.fillText(roseName(i),s.x,s.y+3);
+    }
+  }
 }
 
 // ---------- layers (world-space ones draw under applyTransform(v)) ----------
@@ -279,7 +300,7 @@ function drawCanoe(v,Pw,Aw,Bw){
 }
 
 // screen-space pass: markers + labels (crisp, upright at any zoom)
-function drawMarkersAndLabels(v,Pw,Aw,Bw){
+function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
   if(mode==='puzzle'&&puzzle){
     puzzle.candidates.forEach((cd,i)=>{
       if(i===puzzle.chosenIndex)return;const s=worldToScreen(project(cd),v);
@@ -291,7 +312,7 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw){
   drawMarker(sB,PAL.island,null,5);drawLabel(sB,B.name,true,false);
   if(C){const sC=worldToScreen(project(C),v);
     drawMarker(sC,PAL.refFill,hexA(PAL.amber,0.5),5.5);drawLabel(sC,C.name,false,false);}
-  drawRoseLabels(Pw,v);
+  drawRoseLabels(Pw,v,cur);
 }
 
 function draw(){
@@ -300,6 +321,7 @@ function draw(){
 
   const cn=canoeAt(t);
   const refDeg=C?gcBearing(cn,C):null;
+  const cur=refDeg==null?-1:houseOf(refDeg);
   const v=viewParams(cn);
   const Pw=v.P;
   const Aw=project(A),Bw=project(B);
@@ -310,13 +332,13 @@ function draw(){
   drawRangeRings(v);
   drawCourse(v,Aw,Bw);
   drawTrails(v,Pw,Aw);
-  drawRose(Pw,v,refDeg==null?-1:houseOf(refDeg));
+  drawRose(Pw,v,cur);
   drawBearings(v,Pw);
   drawCanoe(v,Pw,Aw,Bw);
   ctx.restore();
 
   // ---- screen-space pass ----
-  drawMarkersAndLabels(v,Pw,Aw,Bw);
+  drawMarkersAndLabels(v,Pw,Aw,Bw,cur);
   updateReadout(refDeg);
 }
 
@@ -336,9 +358,11 @@ function updateReadout(refDeg){
   const total=boundaries.length+1;
   const segName=total>1&&seg===total?' — etak of sighting':
                 total>2&&seg===total-1?' — etak of birds':'';
+  const h=houseOf(refDeg), c=ETAK_COMPASS[h];
+  const houseName=c.car?`${c.pre?c.pre+' ':''}<b>${c.car}</b> · ${c.star}`:`<b>${c.star}</b>`;
   const html=
     `etak <b class="etakN">${seg}</b> of <b>${total}</b>${segName}<br>`+
-    `bearing to reference <b>${refDeg.toFixed(1).padStart(5,'0')}°</b> · house <b>${houseOf(refDeg)+1}</b>/32<br>`+
+    `bearing to reference <b>${refDeg.toFixed(1).padStart(5,'0')}°</b> · house <b>${h+1}</b>/32 — ${houseName}<br>`+
     `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>`;
   if(html!==lastReadout){lastReadout=html;readoutEl.innerHTML=html;}
 }
