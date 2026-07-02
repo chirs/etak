@@ -1,7 +1,8 @@
 (() => {
 'use strict';
 
-const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,gmst,scoreFor,verdictText} = EtakCore;
+const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,gmst,scoreFor,verdictText,
+       PLANETS,sunPos,moonPos,planetPos} = EtakCore;
 
 const canvas = document.getElementById('sea');
 const ctx = canvas.getContext('2d');
@@ -463,6 +464,39 @@ function drawBoatView(cn,refDeg,cur){
     drawMarker({x,y},hot?PAL.amber:hexA(PAL.starlight,Math.max(0.25,0.9*dimAt(p.alt))),
                hot?hexA(PAL.amber,0.4):null,hot?2.6:Math.max(1.4,2.6-0.5*s.mag));
     if(s.lbl){ctx.fillStyle=hot?PAL.amber:hexA(PAL.dim,0.6);ctx.fillText(s.car||s.name,x+7,y+3);}
+  }
+
+  // wanderers: the five naked-eye planets as bright labeled dots, then the Moon
+  // with its true phase (bright limb facing the sun's sky position)
+  const jd=voyageMs()/86400000+2440587.5;
+  for(const name of PLANETS){
+    const pl=planetPos(name,jd), p=altAz(pl.ra,pl.dec,cn.lat,lst);
+    if(p.alt<-0.5||!inView(relAz(p.az)))continue;
+    const y=hy-p.alt*pxDeg;if(y<14)continue;
+    const dim=dimAt(p.alt), a=Math.min(1,0.85-0.1*pl.mag)*dim;
+    if(a<0.04)continue;
+    const x=azX(p.az);
+    ctx.fillStyle=hexA(PAL.starlight,a);
+    ctx.beginPath();ctx.arc(x,y,Math.max(0.8,2.7-0.33*pl.mag)*(0.5+0.5*dim),0,7);ctx.fill();
+    ctx.fillStyle=hexA(PAL.dim,0.15+0.5*dim);ctx.fillText(name,x+7,y+3);
+  }
+  const mo=moonPos(jd), pm=altAz(mo.ra,mo.dec,cn.lat,lst);
+  if(pm.alt>-0.5&&inView(relAz(pm.az))){
+    const x=azX(pm.az), y=hy-pm.alt*pxDeg;
+    if(y>=14){
+      const Rm=Math.max(4,0.3*pxDeg);                 // true disc is ~0.26° — a touch of looming
+      const su=sunPos(jd), ps=altAz(su.ra,su.dec,cn.lat,lst);
+      const th=Math.atan2((hy-ps.alt*pxDeg)-y,azX(ps.az)-x);
+      const dim=0.35+0.65*dimAt(pm.alt);              // the moon survives low altitude
+      ctx.fillStyle=hexA(PAL.starlight,0.08*dim);     // earthshine night side
+      ctx.beginPath();ctx.arc(x,y,Rm,0,7);ctx.fill();
+      const k=2*mo.phase-1;                           // -1 new .. +1 full
+      ctx.fillStyle=hexA(PAL.starlight,0.85*dim);
+      ctx.beginPath();
+      ctx.arc(x,y,Rm,th-Math.PI/2,th+Math.PI/2);      // sunward semicircle of the limb
+      ctx.ellipse(x,y,Rm*Math.abs(k),Rm,th,Math.PI/2,3*Math.PI/2,k<0);  // terminator
+      ctx.fill();
+    }
   }
 
   // house ticks + boundary separators + names (same semantics as the rose)

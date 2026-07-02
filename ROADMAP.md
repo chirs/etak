@@ -75,6 +75,10 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
 - [x] Real star map — Yale BSC catalog (`tools/build_stars.py` → `stars.js`) + `altAz`/`riseAz`
       in the core; the boat-view sky rotates with sailing time at Gladwin's 5.3 kn, the compass
       type-stars carry their Carolinian names, and the current house's star glows amber
+- [x] The sky before civilization — the whole Yale BSC as the field, atmospheric extinction
+      toward the sea line, a procedural Milky Way (galactic dust + glow, Great Rift), and the
+      wanderers: the Moon with its true phase and the five naked-eye planets (Schlyter
+      low-precision ephemerides in `core.js`, tested against JPL Horizons fixtures)
 - [ ] Look into the Hipparcos-based HYG database (github.com/astronexus/HYG-Database) for a
       denser star field — the full Yale BSC tops out at ~9,100 stars (V ≤ 7.96); HYG carries
       ~120k, enough for 15k+ field stars if the sky should deepen further (HYG has an `hr`
