@@ -114,15 +114,25 @@ guess, and the boat view (the whole point) carries no gameplay at all.
 
 - [ ] **Publish** — GitHub Pages serving `src/` so people can actually sail it (site becomes
       public; enable Pages, no build step needed)
+- [ ] **URL state / permalinks** — encode passage, mode, `t`, and frame in the hash so a
+      shared link lands on "look at this moment" and a refresh doesn't reset to the story;
+      pairs with Publish
 - [ ] **The blind passage** — the core loop. After choosing a reference island you *sail* it:
       boat view only — no chart, no scrubber, no progress % — watching the reference caret slip
       house to house. At unpredictable moments the navigator's question comes: *which etak are
       we in? how far to landfall?* Scored by error. Makes the island choice consequential (pick
       the bad reference and you are genuinely lost — the actual lesson) and makes the sky
       load-bearing.
+- [ ] **Landfall as the win condition** — the blind passage ends the way the real voyage
+      does: the player calls *etak of birds* when they believe they've entered the
+      destination's ~18 mi ring, and land shows on the boat-view horizon only once truly
+      inside sighting range — the range rings stop being decoration and become the payoff
 - [ ] **The apprenticeship** — wrap the passages in a progression with escalating blindness
       (first voyage keeps the chart, later ones allow glances, the last is boat-only), ending
       in a *pwo*-style title. Cheap meta-structure once the blind passage exists.
+- [ ] **Progress persistence** — localStorage record of which passages are done at which
+      blindness level, so the apprenticeship survives a refresh (same pattern as
+      `etakStorySeen`)
 - [ ] *Stretch:* **steer by the stars** — at each etak boundary, confirm the heading by picking
       the right star house from the boat view; wind/leeway drift pushes the canoe off-course and
       the reference island's bearing is what betrays it (needs a small drift model in the core)
