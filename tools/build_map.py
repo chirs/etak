@@ -34,8 +34,8 @@ URL = ("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
 # to close the basin north; down to sub-Antarctic latitudes south.
 LON_MIN, LON_MAX = 110.0, 292.0      # 110°E eastward across the dateline to 68°W
 LAT_MIN, LAT_MAX = -75.0, 66.0
-SIMPLIFY_TOL = 0.03                  # degrees (~3.3 km); Douglas-Peucker tolerance
-MIN_RING_AREA = 0.01                 # deg^2 (~120 km²); drop rings smaller than this
+SIMPLIFY_TOL = 0.015                 # degrees (~1.7 km); Douglas-Peucker tolerance
+MIN_RING_AREA = 0.002                # deg^2 (~24 km²); drop rings smaller than this
 
 # Fine-detail region: the Caroline–Mariana seaways the app actually sails.
 # Rings whose centroid falls in this box keep near-full 10m detail so the
