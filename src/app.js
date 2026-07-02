@@ -38,7 +38,7 @@ const CFG={
   depart:'1969-07-10T09:00:00Z',// dusk (19:00 local) at Puluwat, Hipour's revival year —
                                 // chosen so Altair sits just-risen at t=0 on Puluwat→Chuuk
   fov:110,                      // boat view: horizontal field of view, degrees
-  horizonFrac:0.62,             // boat view: horizon height as a fraction of the viewport
+  horizonUp:170,                // boat view: horizon height, px above the viewport bottom (clears the readout)
   bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
   seaVanish:1.15,               // boat view: sea-grid vanishing point depth, fraction of H
 };
@@ -366,7 +366,7 @@ function drawBoatView(cn,refDeg,cur){
   const inView=rel=>Math.abs(rel)<CFG.fov/2+8;
   const pxDeg=W/CFG.fov;                            // px per degree, both axes
   const azX=az=>W/2+relAz(az)*pxDeg;
-  const hy=H*CFG.horizonFrac;
+  const hy=Math.max(H*0.5,H-CFG.horizonUp);
   ctx.lineWidth=1;
 
   // polar sea grid: a line from each house's horizon point, converging on a
