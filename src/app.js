@@ -160,7 +160,7 @@ let t=0,playing=false,speedMul=1,f=0,fTarget=0;
 let b=0,bTarget=0;         // boat-view fade (0 = chart/navigator, 1 = horizon view)
 let look=0;                // boat-view gaze, degrees off the course heading (0 = dead ahead)
 let pitch=0;               // boat-view gaze tilt, degrees above dead-ahead (0 = horizon level)
-const DEPART_MS=Date.parse(CFG.depart);
+let DEPART_MS=Date.parse(CFG.depart);             // adjustable via the departure picker (boat view)
 const voyageMs=()=>DEPART_MS+t*legHours*3600e3;   // real clock time at voyage fraction t
 let mode='puzzle';
 
@@ -678,9 +678,15 @@ scrub.addEventListener('input',()=>{t=+scrub.value;setPlaying(false);});
 speedEl.addEventListener('input',()=>{speedMul=+speedEl.value;});
 
 const frameHint=document.querySelector('.frames .hint');
-document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget=0;frameHint.textContent='same voyage, three frames';frameActive(e.target);});
-document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;frameHint.textContent='same voyage, three frames';frameActive(e.target);});
-document.getElementById('fBoat').addEventListener('click',e=>{bTarget=1;look=0;pitch=0;frameHint.textContent='drag the sea to look around';frameActive(e.target);});
+const departWrap=document.getElementById('departWrap'),departEl=document.getElementById('depart');
+departEl.value=CFG.depart.slice(0,16);
+departEl.addEventListener('change',()=>{
+  const ms=Date.parse(departEl.value+':00Z');     // picker value is UTC by convention
+  if(!isNaN(ms))DEPART_MS=ms;
+});
+document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget=0;departWrap.classList.add('hidden');frameHint.textContent='same voyage, three frames';frameActive(e.target);});
+document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;departWrap.classList.add('hidden');frameHint.textContent='same voyage, three frames';frameActive(e.target);});
+document.getElementById('fBoat').addEventListener('click',e=>{bTarget=1;look=0;pitch=0;departWrap.classList.remove('hidden');frameHint.textContent='drag the sea to look around';frameActive(e.target);});
 
 // arrow keys while aboard: ←/→ swing the gaze, ↑/↓ tilt it
 addEventListener('keydown',e=>{

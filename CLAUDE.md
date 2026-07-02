@@ -55,7 +55,8 @@ discrete third state faded through night by `b` (different projection — no ble
   sliding across them (one etak = one house); the wireframe bow anchors to the *heading*
   azimuth, so it leaves the frame when you look abeam. The sky above is the real one
   (`STAR_MAP` + `EtakCore.altAz`), rotating with sailing time (`t · legNm / CFG.canoeKn` hours
-  from a departure anchored by `CFG.gst0`); the current house's physical star glows amber.
+  from a departure anchored by `CFG.depart`, adjustable while aboard via the departure
+  picker, which repositions the whole sky); the current house's physical star glows amber.
   Pure screen space; chart pan/zoom are disabled while active.
 
 Two **modes**:

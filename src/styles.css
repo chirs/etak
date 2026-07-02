@@ -89,6 +89,14 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
 .modeswitch button.active{background:#1a273a;color:var(--starlight)}
 .modeswitch button:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
 
+.departwrap{position:fixed;right:24px;bottom:138px;z-index:4;display:flex;align-items:center;gap:8px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5d6d84;
+  letter-spacing:.14em;text-transform:uppercase;transition:opacity .3s}
+.departwrap.hidden{opacity:0;pointer-events:none}
+.departwrap input{border:1px solid var(--line);background:var(--panel);color:var(--starlight);
+  border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12px;color-scheme:dark}
+.departwrap input:focus-visible{outline:2px solid var(--amber)}
+
 .newbtn{position:fixed;right:24px;bottom:84px;z-index:4;appearance:none;
   border:1px solid var(--line);background:var(--panel);color:var(--starlight);
   font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 16px;border-radius:8px;cursor:pointer;
