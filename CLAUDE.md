@@ -20,8 +20,10 @@ package manager at runtime. The app is these files in `src/`:
 - `app.js` — everything else: projection, camera, puzzle/sandbox state, canvas rendering, UI wiring, the rAF loop.
 
 `tools/build_map.py` regenerates `map-data.js` from Natural Earth 10m land (full detail inside
-the Caroline–Mariana fine region) and `tools/build_stars.py` regenerates `stars.js` from the Yale
-Bright Star Catalog — both stdlib-only, source data checked in next to them. Tests:
+the Caroline–Mariana fine region; mid-detail boxes around the settlement-story landfalls) plus
+OSM/Overpass coastlines for the outer-Caroline atolls Natural Earth lacks (Satawal, Lamotrek,
+West Fayu, Elato, Pikelot, Gaferut), and `tools/build_stars.py` regenerates `stars.js` from the
+Yale Bright Star Catalog — both stdlib-only, source data checked in next to them. Tests:
 `node --test 'tests/**/*.test.mjs'`.
 
 Scripts are plain classic `<script>` tags (not ES modules) so `src/index.html` still works opened

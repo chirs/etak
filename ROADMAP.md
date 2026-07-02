@@ -117,11 +117,12 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
       blurbs for the Caroline gazetteer)
 - [ ] Label collision at minimum zoom — the Carolines cluster overlaps when the whole
       ocean is framed; gate dates (or labels) by zoom the way the rose does
-- [ ] Coastlines for the missing atolls — Satawal, Lamotrek, West Fayu, Elato, Pikelot, and
-      Gaferut render as dots with no land. Natural Earth has **no geometry for them in any
-      dataset** (`ne_10m_minor_islands` was evaluated 2026-07: zero coverage there, and its
-      only in-chart rings duplicate `ne_10m_land`). A real fix needs a different source —
-      OSM coastline ways via Overpass (cache the response next to the tools), or GSHHG
+- [x] Coastlines for the missing atolls — Satawal, Lamotrek, West Fayu, Elato, Pikelot, and
+      Gaferut had no land in the chart: Natural Earth has **no geometry for them in any
+      dataset** (`ne_10m_minor_islands` evaluated 2026-07: zero coverage, and its only
+      in-chart rings duplicate `ne_10m_land`) — fetched their coastline ways from OSM via
+      the Overpass API instead (`OSM_ATOLLS` in `tools/build_map.py`, response cached in
+      `tools/osm_atolls.json`); every `ETAK_ISLANDS` entry now has land within ~0.08°
 
 
 ## Second act — from simulator to game
