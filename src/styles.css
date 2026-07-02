@@ -2,7 +2,7 @@
   --night:#0d1420; --night-2:#101b2b;
   --starlight:#f3ead2; --amber:#f0a848; --teal:#5aa8aa;
   --sand:#c9b089; --faint:#8fa0b5;
-  --panel:#131e2ecc; --line:#26344a;
+  --panel:#131e2ecc; --panel-glass:#131e2e73; --line:#26344a;
   --good:#7fc99b; --bad:#d98a6a;
   --dim:#5d6d84;
   /* canvas-only tokens (read into the JS palette; keep these the single source) */
@@ -97,7 +97,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
 
 .storycard{position:fixed;left:24px;bottom:24px;z-index:6;
   width:min(440px,calc(100vw - 48px));padding:18px 22px 14px;border:1px solid var(--line);
-  border-radius:12px;background:var(--panel);backdrop-filter:blur(6px);transition:opacity .3s}
+  border-radius:12px;background:var(--panel-glass);backdrop-filter:blur(3px);transition:opacity .3s}
 .storycard.hidden{opacity:0;pointer-events:none}
 .storycard .era{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--amber)}

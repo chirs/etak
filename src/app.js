@@ -812,13 +812,19 @@ function endStory(){
   newBtn.classList.toggle('hidden',mode!=='puzzle');
   fitLeg();
 }
-storyNext.addEventListener('click',()=>{
-  if(story.beat<ETAK_STORY.length-1){story.beat++;storyShowBeat();}
-  else endStory();
-});
+function storyStep(dir){
+  if(dir>0){story.beat<ETAK_STORY.length-1?(story.beat++,storyShowBeat()):endStory();}
+  else if(story.beat>0){story.beat--;storyShowBeat();}
+}
+storyNext.addEventListener('click',()=>storyStep(1));
 document.getElementById('storySkip').addEventListener('click',endStory);
 document.getElementById('storyBtn').addEventListener('click',()=>{if(!story)startStory();});
-addEventListener('keydown',e=>{if(story&&e.key==='Escape')endStory();});
+addEventListener('keydown',e=>{
+  if(!story)return;
+  if(e.key==='Escape')endStory();
+  else if(e.key==='ArrowRight'){storyStep(1);e.preventDefault();}
+  else if(e.key==='ArrowLeft'){storyStep(-1);e.preventDefault();}
+});
 
 // ---------- camera + sandbox drag (chart frame) ----------
 let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | null

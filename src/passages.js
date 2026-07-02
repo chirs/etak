@@ -143,7 +143,7 @@ const ETAK_STORY = (() => {
       text: 'Farmers and fishers crossed from Taiwan to Luzon and spread south through island ' +
             'Southeast Asia. Their descendants — the Austronesians — carried the outrigger ' +
             'canoe, and a language family that would one day stretch halfway around the world.',
-      fit: [{ lat: 28, lon: 116 }, { lat: -8, lon: 140 }],
+      fit: [{ lat: 25, lon: 118 }, { lat: -3, lon: 131 }],
       arcs: [
         { from: taiwan, fromName: 'TAIWAN', to: luzon, name: 'LUZON', date: '~2200 BCE' },
         { from: luzon, to: halmahera, name: 'ISLAND SE ASIA', date: '~2000 BCE' },
