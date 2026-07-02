@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 
-const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,gmst,scoreFor,verdictText,
+const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,riseAz,gmst,scoreFor,verdictText,
        PLANETS,sunPos,moonPos,planetPos} = EtakCore;
 
 const canvas = document.getElementById('sea');
@@ -56,6 +56,7 @@ const CFG={
   waveAmp:2.2,                  // ocean surface: max vertex displacement, px
   waveAlpha:0.05,               // ocean surface: line alpha
   waveSpeed:0.5,                // ocean surface: base phase drift, rad/s
+  starHitR:16,                  // boat view: compass-star click hit radius, screen px
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -180,6 +181,8 @@ let t=0,playing=false,speedMul=1,f=0,fTarget=0;
 let b=0,bTarget=0;         // boat-view fade (0 = chart/navigator, 1 = horizon view)
 let look=0;                // boat-view gaze, degrees off the course heading (0 = dead ahead)
 let pitch=0;               // boat-view gaze tilt, degrees above dead-ahead (0 = horizon level)
+let starHits=[];           // boat view: compass stars' screen spots, refreshed each frame
+let starPick=null;         // boat view: the compass star whose card is open
 let DEPART_MS=Date.parse(CFG.depart);             // adjustable via the departure picker (boat view)
 const voyageMs=()=>DEPART_MS+t*legHours*3600e3;   // real clock time at voyage fraction t
 let mode='puzzle';
@@ -619,13 +622,17 @@ function drawBoatView(cn,refDeg,cur){
     ctx.beginPath();ctx.arc(azX(p.az),y,Math.max(0.55,2.7-0.33*mag)*(0.5+0.5*dim),0,7);ctx.fill();
   }
   ctx.font='9px "IBM Plex Mono",monospace';ctx.textAlign='left';
+  starHits.length=0;
   for(const s of STAR_MAP.compass){
     const p=altAz(s.ra,s.dec,cn.lat,lst);
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
     const y=hy-p.alt*pxDeg;if(y<14)continue;
     const x=azX(p.az), hot=s.group===curBase;
+    starHits.push({x,y,s,alt:p.alt,az:p.az});
     drawMarker({x,y},hot?PAL.amber:hexA(PAL.starlight,Math.max(0.25,0.9*dimAt(p.alt))),
                hot?hexA(PAL.amber,0.4):null,hot?2.6:Math.max(1.4,2.6-0.5*s.mag));
+    if(s===starPick){ctx.strokeStyle=PAL.teal;ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.stroke();}
     if(s.lbl){ctx.fillStyle=hot?PAL.amber:hexA(PAL.dim,0.6);ctx.fillText(s.car||s.name,x+7,y+3);}
   }
 
@@ -863,8 +870,8 @@ departEl.addEventListener('change',()=>{
   const ms=Date.parse(departEl.value+':00Z');     // picker value is UTC by convention
   if(!isNaN(ms))DEPART_MS=ms;
 });
-document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget=0;departWrap.classList.add('hidden');frameHint.textContent='same voyage, three frames';frameActive(e.target);});
-document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;departWrap.classList.add('hidden');frameHint.textContent='same voyage, three frames';frameActive(e.target);});
+document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget=0;hideStarCard();departWrap.classList.add('hidden');frameHint.textContent='same voyage, three frames';frameActive(e.target);});
+document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;hideStarCard();departWrap.classList.add('hidden');frameHint.textContent='same voyage, three frames';frameActive(e.target);});
 document.getElementById('fBoat').addEventListener('click',e=>{bTarget=1;look=0;pitch=0;departWrap.classList.remove('hidden');frameHint.textContent='drag the sea to look around';frameActive(e.target);});
 
 // arrow keys while aboard: ←/→ swing the gaze, ↑/↓ tilt it
@@ -883,6 +890,7 @@ const newBtn=document.getElementById('newBtn'),subEl=document.getElementById('su
 const framesEl=document.querySelector('.frames');
 function setMode(m){
   mode=m;
+  hideStarCard();
   mPuzzle.classList.toggle('active',m==='puzzle');
   mSandbox.classList.toggle('active',m==='sandbox');
   mSettle.classList.toggle('active',m==='settlement');
@@ -964,7 +972,7 @@ function storyShowBeat(){
   storyNext.textContent=story.beat===ETAK_STORY.length-1?'SAIL ⟶':'NEXT ⟶';
 }
 function startStory(){
-  setPlaying(false);fTarget=0;bTarget=0;t=0;scrub.value=0;
+  setPlaying(false);fTarget=0;bTarget=0;t=0;scrub.value=0;hideStarCard();
   story={beat:0,tBeat:0};
   storyChrome.forEach(el=>el.classList.add('hidden'));
   chooserEl.classList.add('hidden');newBtn.classList.add('hidden');departWrap.classList.add('hidden');
@@ -994,13 +1002,35 @@ addEventListener('keydown',e=>{
   else if(e.key==='ArrowLeft'){storyStep(-1);e.preventDefault();}
 });
 
+// ---------- boat-view star card ----------
+const starCard=document.getElementById('starCard');
+const starEra=document.getElementById('starEra'),starTitle=document.getElementById('starTitle');
+const starText=document.getElementById('starText');
+function hideStarCard(){starPick=null;starCard.classList.add('hidden');}
+document.getElementById('starClose').addEventListener('click',hideStarCard);
+const starBaseName=st=>st.replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,'');
+function showStarCard(h){
+  const s=h.s;starPick=s;
+  const houses=ETAK_COMPASS.map((c,i)=>i).filter(i=>starBaseName(ETAK_COMPASS[i].star)===s.group);
+  const r=riseAz(s.dec,canoeAt(t).lat);
+  const road=isFinite(r)
+    ?`It rises at ${Math.round(r)}° true and sets at ${Math.round(360-r)}° — the compass rounds it to its even point.`
+    :'It never rises or sets at this latitude — the steady anchor of the north.';
+  starEra.textContent=(s.group===s.name?'':s.group+' · ')+`${s.name} · mag ${s.mag.toFixed(1)}`;
+  starTitle.textContent=s.car||s.name;
+  starText.textContent=
+    `Now ${Math.round(h.alt)}° above the horizon, bearing ${String(Math.round(h.az)).padStart(3,'0')}°. `+road+
+    (houses.length?` House${houses.length>1?'s':''}: ${houses.map(i=>roseName(i)).join(', ')}.`:'');
+  starCard.classList.remove('hidden');
+}
+
 // ---------- camera + sandbox drag (chart frame) ----------
 let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | 'gaze' | null
 let downX=0,downY=0;                 // pointerdown position (settlement click-vs-drag)
 canvas.addEventListener('pointerdown',e=>{
   if(story)return;                     // camera belongs to the story flights
   if(bTarget===1){                     // aboard: drag turns your gaze
-    dragMode='gaze';lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);return;
+    dragMode='gaze';downX=lastX=e.clientX;downY=lastY=e.clientY;canvas.setPointerCapture(e.pointerId);return;
   }
   if(mode==='sandbox'){
     const cs=worldToScreen(project(C));
@@ -1022,6 +1052,12 @@ canvas.addEventListener('pointermove',e=>{
   }
 });
 canvas.addEventListener('pointerup',e=>{
+  // aboard: a still click (not a gaze drag) picks the nearest compass star → its card
+  if(dragMode==='gaze'&&Math.hypot(e.clientX-downX,e.clientY-downY)<4){
+    let best=null,bd=CFG.starHitR;
+    for(const h of starHits){const d=Math.hypot(h.x-e.clientX,h.y-e.clientY);if(d<bd){bd=d;best=h;}}
+    best?showStarCard(best):hideStarCard();
+  }
   // settlement: a still click (not a pan) hits a reached place → its card; empty sea → era card
   if(mode==='settlement'&&dragMode==='pan'&&Math.hypot(e.clientX-downX,e.clientY-downY)<4){
     const v=viewParams();

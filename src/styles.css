@@ -122,6 +122,8 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
 
 /* settlement mode: the era/place card sits bottom-left, above the timeline bar */
 .storycard.settle{top:auto;bottom:84px;z-index:5}
+.storycard.star{left:auto;right:24px;top:auto;bottom:180px;width:min(320px,calc(100vw - 48px));z-index:5}
+.storycard.star p{margin-bottom:2px}
 .storycard.settle p{margin-bottom:2px}
 .storycard .close{position:absolute;top:10px;right:12px;appearance:none;background:none;border:0;
   padding:2px 4px;font-size:12px;color:#5d6d84;cursor:pointer;transition:color .2s}

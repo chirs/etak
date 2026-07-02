@@ -9,7 +9,7 @@
 
 - [x] Reduce maximum zoom out to full screen
 - [ ] UI redesign - unify, less messy
-- [ ] Clickable star labels (info? distance? names?)
+- [x] Clickable star labels (info? distance? names?)
 - [ ] Constellations
 - [x] Make ocean prettier - mesh, pseudo-waves
 - [ ] Voyage picker!
