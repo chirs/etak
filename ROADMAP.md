@@ -11,7 +11,7 @@
 - [ ] UI redesign - unify, less messy
 - [ ] Clickable star labels (info? distance? names?)
 - [ ] Constellations
-- [ ] Make ocean prettier - mesh, pseudo-waves
+- [x] Make ocean prettier - mesh, pseudo-waves
 - [ ] Voyage picker!
 
 

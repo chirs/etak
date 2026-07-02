@@ -20,7 +20,7 @@ const PAL = {
   course:cv('--course'), tick:cv('--tick'), roseRing:cv('--rose-ring'),
   roseMinor:cv('--rose-minor'), ghost:cv('--ghost'), island:cv('--island'),
   refFill:cv('--ref-fill'), land:cv('--land'), coast:cv('--coast'),
-  range:cv('--range'),
+  range:cv('--range'), wave:cv('--wave'),
 };
 
 // ---------- tuning constants ----------
@@ -51,6 +51,11 @@ const CFG={
   placeHitR:14,                 // settlement mode: place click hit radius, screen px
   arcYears:150,                 // settlement timeline: max years a voyage arc takes to cross
   yearRate:100,                 // settlement timeline: years per second at speed 1
+  waveGap:44,                   // ocean surface: screen px between swell lines
+  waveSeg:26,                   // ocean surface: sampling step along a line, px
+  waveAmp:2.2,                  // ocean surface: max vertex displacement, px
+  waveAlpha:0.05,               // ocean surface: line alpha
+  waveSpeed:0.5,                // ocean surface: base phase drift, rad/s
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -267,6 +272,26 @@ function drawRoseLabels(Pw,v,cur){
 function drawSky(){
   const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,PAL.night);g.addColorStop(1,PAL.night2);
   ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+
+// ocean surface: sparse screen-space swell lines, each vertex displaced by a slow
+// sum-of-sines field. Phase coordinates are anchored to the world origin so the
+// texture pans with the chart; drawn before the world pass, so land covers it.
+function drawOcean(v){
+  const o=worldToScreen({x:0,y:0},v);
+  const ph=reduceMotion?0:performance.now()/1000*CFG.waveSpeed;
+  ctx.strokeStyle=hexA(PAL.wave,CFG.waveAlpha);ctx.lineWidth=1;
+  for(let y=CFG.waveGap/2;y<H;y+=CFG.waveGap){
+    ctx.beginPath();
+    for(let x=0;x<=W+CFG.waveSeg;x+=CFG.waveSeg){
+      const px=x-o.x, py=y-o.y;
+      const dy=CFG.waveAmp*(Math.sin(px*0.013+py*0.005+ph)
+                           +0.6*Math.sin(px*0.031-py*0.021+ph*1.7)
+                           +0.4*Math.sin(py*0.043+px*0.008-ph*1.24));
+      x?ctx.lineTo(x,y+dy):ctx.moveTo(x,y+dy);
+    }
+    ctx.stroke();
+  }
 }
 
 function drawCoast(v){
@@ -702,6 +727,8 @@ function draw(){
     const v=viewParams(cn);
     const Pw=v.P;
     const Aw=project(A),Bw=project(B);
+
+    drawOcean(v);
 
     // ---- world-space pass ----
     ctx.save();applyTransform(v);
