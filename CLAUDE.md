@@ -38,10 +38,15 @@ segmenting the voyage into legs. A good reference island produces ~6 evenly-spac
 The whole view is drawn **east-up** (world rotated −90°) — the traditional Carolinian
 alignment, compass anchored on Altair with east at the top.
 
-Two **reference frames** render the *same* voyage, cross-faded by `f` (0=chart, 1=navigator):
+Three **frames** render the *same* voyage. CHART↔NAVIGATOR cross-fade by `f`; BOAT is a
+discrete third state faded through night by `b` (different projection — no blend possible):
 - **CHART** (`f=0`): canoe moves, islands fixed — the outside/map view (camera-centered).
 - **NAVIGATOR** (`f=1`): canoe fixed at center, islands drift past — the Etak mental model
   where the reference island "moves." The crossfade blends centering only (rotation is constant).
+- **BOAT** (`b=1`): the horizon from the canoe (`drawBoatView`) — full 360° of azimuth across
+  the width, centered on the course heading; star houses ticked along the horizon line, the
+  reference island's caret sliding across them (one etak = one house). Pure screen space; pan/
+  zoom/drag are disabled while active.
 
 Two **modes**:
 - **PUZZLE**: a documented real passage with 4 real candidate islands; pick the one that best

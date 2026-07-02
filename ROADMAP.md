@@ -65,12 +65,13 @@ The full 32-point compass (Carolinian names + azimuths) is already transcribed i
 
 A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
 
-- [ ] Horizon view from the canoe — horizon band with the star houses arrayed along it, the
+- [x] Horizon view from the canoe — horizon band with the star houses arrayed along it, the
       reference island's bearing point sliding across them as the voyage advances (each etak
       boundary = it slips to the next house); destination/home direction marked
-- [ ] Decide how it joins the frame toggle — CHART↔NAVIGATOR crossfade by `f` blends one world
+- [x] Decide how it joins the frame toggle — CHART↔NAVIGATOR crossfade by `f` blends one world
       transform, but the boat view is a different projection entirely, so it is likely a discrete
-      third state (fade to black / cut) rather than a blend
+      third state (fade to black / cut) rather than a blend — implemented as a third button that
+      fades through `PAL.night` on an eased `b`, drawn as a pure screen-space layer
 
 
 ## More passages

@@ -34,6 +34,9 @@ const CFG={
   roseNames:50,                 // zoom (px/deg) above which all 32 house names label the rose
   zoomStep:1.12,                // wheel zoom factor per notch
   fEase:2.6, fEaseReduced:8,    // frame-crossfade speed (reduced motion: near-instant)
+  horizonFrac:0.62,             // boat view: horizon height as a fraction of the viewport
+  seaLines:6, seaSpread:2.2,    // boat view: sea-grid horizontal count + vertical splay
+  bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -146,6 +149,7 @@ function makeSandbox(){
 
 // ---------- sim state ----------
 let t=0,playing=false,speedMul=1,f=0,fTarget=0;
+let b=0,bTarget=0;         // boat-view fade (0 = chart/navigator, 1 = horizon view)
 let mode='puzzle';
 
 // ---------- view transform (single source; screenToWorld/worldToScreen invert it) ----------
@@ -344,6 +348,80 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
   drawRoseLabels(Pw,v,cur);
 }
 
+// ---------- boat view (third frame): the horizon from the canoe ----------
+// Pure screen space. Full 360° of azimuth across the width, centered on the
+// course heading, so the destination sits dead ahead and home at the wrap edges.
+function drawBoatView(cn,refDeg,cur){
+  const hdg=gcBearing(cn,B);
+  const azX=az=>W/2+((((az-hdg+540)%360)-180)/360)*W;
+  const hy=H*CFG.horizonFrac;
+  ctx.lineWidth=1;
+
+  // sea grid: horizontals crowd toward the horizon, verticals splay outward
+  ctx.strokeStyle=hexA(PAL.course,0.45);
+  for(let k=1;k<=CFG.seaLines;k++){
+    const y=hy+(H-hy)*Math.pow(k/CFG.seaLines,2);
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+  }
+  ctx.strokeStyle=hexA(PAL.course,0.22);
+  for(let i=0;i<32;i++){
+    const xh=azX(i*HOUSE), xb=W/2+(xh-W/2)*CFG.seaSpread;
+    ctx.beginPath();ctx.moveTo(xh,hy);ctx.lineTo(xb,H);ctx.stroke();
+  }
+
+  // horizon: soft glow under a crisp line
+  ctx.strokeStyle=hexA(PAL.teal,0.22);ctx.lineWidth=3.5;
+  ctx.beginPath();ctx.moveTo(0,hy);ctx.lineTo(W,hy);ctx.stroke();
+  ctx.strokeStyle=hexA(PAL.teal,0.85);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,hy);ctx.lineTo(W,hy);ctx.stroke();
+
+  // house ticks + boundary separators + names (same semantics as the rose)
+  ctx.font='9.5px "IBM Plex Mono",monospace';
+  for(let i=0;i<32;i++){
+    const x=azX(i*HOUSE);
+    const major=i%8===0, tick=major?14:(i%4===0?10:6);
+    ctx.strokeStyle=i===cur?PAL.amber:PAL.roseMinor;ctx.lineWidth=i===cur?2:1;
+    ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(x,hy-tick);ctx.stroke();
+    const xs=azX(i*HOUSE+HOUSE/2);
+    ctx.strokeStyle=hexA(PAL.roseMinor,0.45);ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(xs,hy-3);ctx.lineTo(xs,hy+3);ctx.stroke();
+    ctx.fillStyle=i===cur?PAL.amber:hexA(PAL.dim,major?0.5:0.28);
+    ctx.save();ctx.translate(x,hy-20);ctx.rotate(-Math.PI/2);
+    ctx.textAlign='left';ctx.fillText(roseName(i),0,3);ctx.restore();
+  }
+
+  // island markers: up-carets just below the horizon ("it lies that way")
+  const caret=(x,color)=>{ctx.fillStyle=color;ctx.beginPath();
+    ctx.moveTo(x,hy+3);ctx.lineTo(x-5,hy+11);ctx.lineTo(x+5,hy+11);ctx.closePath();ctx.fill();};
+  const name=(x,y,txt,color)=>{ctx.fillStyle=color;ctx.textAlign='center';ctx.fillText(txt,x,y);};
+  ctx.font='10px "IBM Plex Mono",monospace';
+  if(mode==='puzzle'&&puzzle){
+    puzzle.candidates.forEach((cd,i)=>{
+      if(i===puzzle.chosenIndex)return;
+      const x=azX(gcBearing(cn,cd)), hot=i===hoverIdx;
+      caret(x,hot?hexA(PAL.amber,0.6):hexA(PAL.dim,0.7));
+      name(x,hy+24,cd.name,hot?hexA(PAL.amber,0.8):PAL.dim);
+    });
+  }
+  const xA=azX(gcBearing(cn,A)), xB=W/2;
+  caret(xB,PAL.teal);          name(xB,hy+38,B.name,PAL.faint);
+  caret(xA,hexA(PAL.teal,0.5));name(xA,hy+38,A.name,PAL.dim);
+  if(C&&refDeg!=null){
+    const x=azX(refDeg);
+    ctx.strokeStyle=hexA(PAL.amber,0.18);ctx.lineWidth=3;      // sky beam at the ref bearing
+    ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(x,hy-64);ctx.stroke();
+    caret(x,PAL.amber);name(x,hy+24,C.name,PAL.amber);
+  }
+
+  // bow: two mirrored wireframe curves converging at bottom center
+  const bw=W*CFG.bowW, bh=H*CFG.bowH;
+  ctx.strokeStyle=hexA(PAL.starlight,0.35);ctx.lineWidth=1.5;
+  for(const s of [1,-1]){
+    ctx.beginPath();ctx.moveTo(W/2+s*bw,H+2);
+    ctx.quadraticCurveTo(W/2+s*bw*0.35,H-bh*0.55,W/2,H-bh);ctx.stroke();
+  }
+}
+
 function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0);
   drawSky();
@@ -351,24 +429,36 @@ function draw(){
   const cn=canoeAt(t);
   const refDeg=C?gcBearing(cn,C):null;
   const cur=refDeg==null?-1:houseOf(refDeg);
-  const v=viewParams(cn);
-  const Pw=v.P;
-  const Aw=project(A),Bw=project(B);
+  const be=ease(b);
 
-  // ---- world-space pass ----
-  ctx.save();applyTransform(v);
-  drawCoast(v);
-  drawRangeRings(v);
-  drawCourse(v,Aw,Bw);
-  drawTrails(v,Pw,Aw);
-  drawRose(Pw,v,cur);
-  drawBearings(v,Pw);
-  drawCanoe(v,Pw,Aw,Bw);
-  ctx.restore();
+  if(be<0.55){   // chart/navigator passes, fully covered past the fade midpoint
+    const v=viewParams(cn);
+    const Pw=v.P;
+    const Aw=project(A),Bw=project(B);
 
-  // ---- screen-space pass ----
-  drawGazetteer(v);
-  drawMarkersAndLabels(v,Pw,Aw,Bw,cur);
+    // ---- world-space pass ----
+    ctx.save();applyTransform(v);
+    drawCoast(v);
+    drawRangeRings(v);
+    drawCourse(v,Aw,Bw);
+    drawTrails(v,Pw,Aw);
+    drawRose(Pw,v,cur);
+    drawBearings(v,Pw);
+    drawCanoe(v,Pw,Aw,Bw);
+    ctx.restore();
+
+    // ---- screen-space pass ----
+    drawGazetteer(v);
+    drawMarkersAndLabels(v,Pw,Aw,Bw,cur);
+  }
+
+  // boat view fades through night: first half darkens, second half draws lines
+  if(be>0.002){
+    ctx.fillStyle=hexA(PAL.night,Math.min(1,be*2));
+    ctx.fillRect(0,0,W,H);
+    const ba=Math.max(0,be*2-1);
+    if(ba>0){ctx.save();ctx.globalAlpha=ba;drawBoatView(cn,refDeg,cur);ctx.restore();}
+  }
   updateReadout(refDeg);
 }
 
@@ -445,8 +535,9 @@ playBtn.addEventListener('click',()=>{if(!playing&&t>=1)t=0;setPlaying(!playing)
 scrub.addEventListener('input',()=>{t=+scrub.value;setPlaying(false);});
 speedEl.addEventListener('input',()=>{speedMul=+speedEl.value;});
 
-document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;frameActive(e.target);});
-document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;frameActive(e.target);});
+document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget=0;frameActive(e.target);});
+document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;frameActive(e.target);});
+document.getElementById('fBoat').addEventListener('click',e=>{bTarget=1;frameActive(e.target);});
 function frameActive(btn){document.querySelectorAll('.frames button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
 
 const mPuzzle=document.getElementById('mPuzzle'),mSandbox=document.getElementById('mSandbox');
@@ -468,6 +559,7 @@ newBtn.addEventListener('click',()=>{passageIndex=(passageIndex+1)%ETAK_PASSAGES
 // ---------- camera + sandbox drag (chart frame) ----------
 let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | null
 canvas.addEventListener('pointerdown',e=>{
+  if(bTarget===1)return;               // no pan/zoom/drag from the boat
   if(mode==='sandbox'){
     const cs=worldToScreen(project(C));
     if(Math.hypot(cs.x-e.clientX,cs.y-e.clientY)<CFG.refHitR){dragMode='ref';canvas.setPointerCapture(e.pointerId);return;}
@@ -484,6 +576,7 @@ canvas.addEventListener('pointermove',e=>{
 canvas.addEventListener('pointerup',()=>{dragMode=null;});
 canvas.addEventListener('wheel',e=>{
   e.preventDefault();
+  if(bTarget===1)return;               // no zoom from the boat
   const before=screenToWorld(e.clientX,e.clientY);
   cam.zoom=clamp(cam.zoom*(e.deltaY<0?CFG.zoomStep:1/CFG.zoomStep),MINZOOM,CFG.maxZoom);
   const after=screenToWorld(e.clientX,e.clientY);
@@ -497,6 +590,7 @@ function loop(now){
   if(playing){t+=dt*CFG.playRate*speedMul;if(t>=1){t=1;setPlaying(false);}scrub.value=t;}
   const fSpeed=reduceMotion?CFG.fEaseReduced:CFG.fEase;
   f+=(fTarget-f)*Math.min(1,dt*fSpeed);if(Math.abs(fTarget-f)<0.001)f=fTarget;
+  b+=(bTarget-b)*Math.min(1,dt*fSpeed);if(Math.abs(bTarget-b)<0.001)b=bTarget;
   draw();
   requestAnimationFrame(loop);
 }
