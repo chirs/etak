@@ -17,7 +17,7 @@ import sys
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CACHE = os.path.join(HERE, "ne_10m_land.geojson")  # gitignored download cache
+CACHE = os.path.join(HERE, "ne_10m_land.geojson")  # checked-in source data (skips the download)
 OUT = os.path.join(HERE, "..", "src", "map-data.js")
 
 # Natural Earth 10m land, via the nvkelso/natural-earth-vector GitHub mirror.
