@@ -428,7 +428,7 @@ function drawArcLabels(v,beat,tBeat){
 // ---------- settlement mode (the explorable settlement map) ----------
 // A persistent mode: the story's migration arcs over the chart, free pan/zoom,
 // an era selector, and clickable landfalls (ETAK_PLACES) with info cards.
-const settle={beat:ETAK_STORY.length-1,tBeat:0,places:[]};
+const settle={beat:0,tBeat:0,places:[]};
 let settlePlace=null;      // the clicked ETAK_PLACES entry, or null (era card shown)
 
 // places reached by beats 0..beat, tagged with the arc that lands there so the
@@ -820,13 +820,12 @@ function setMode(m){
   framesEl.classList.toggle('hidden',m==='settlement');
   barEl.classList.toggle('hidden',m==='settlement');
   readoutEl.classList.toggle('hidden',m==='settlement');
+  document.getElementById('storyBtn').classList.toggle('hidden',m==='settlement');   // the tab IS the story
   if(m==='settlement'){
     setPlaying(false);fTarget=0;bTarget=0;departWrap.classList.add('hidden');
     frameActive(document.getElementById('fChart'));
     subEl.textContent='How the Pacific was settled. Pick an era; click a landfall for its story. Scroll to zoom, drag the sea to pan.';
-    setEra(settle.beat);
-    // land on the whole ocean (beat 0's frame), whatever era is selected
-    camTarget=fitPoints(ETAK_STORY[0].fit.map(project),CFG.storyFitFrac);
+    setEra(0);                       // always open on the whole ocean
   }
   else if(m==='puzzle'){makePuzzle();}
   else{subEl.textContent='Free exploration. Drag the reference island; watch how its position reshapes the etaks. Scroll to zoom, drag the sea to pan.';makeSandbox();}
@@ -884,7 +883,6 @@ function startStory(){
   story={beat:0,tBeat:0};
   storyChrome.forEach(el=>el.classList.add('hidden'));
   chooserEl.classList.add('hidden');newBtn.classList.add('hidden');departWrap.classList.add('hidden');
-  eraList.classList.add('hidden');settleCard.classList.add('hidden');
   storyCard.classList.remove('hidden');
   storyShowBeat();
 }
@@ -895,11 +893,7 @@ function endStory(){
   storyChrome.forEach(el=>el.classList.remove('hidden'));
   chooserEl.classList.toggle('hidden',mode!=='puzzle');
   newBtn.classList.toggle('hidden',mode!=='puzzle');
-  if(mode==='settlement'){             // restore the settlement chrome, not the voyage's
-    framesEl.classList.add('hidden');barEl.classList.add('hidden');readoutEl.classList.add('hidden');
-    eraList.classList.remove('hidden');settleCard.classList.remove('hidden');
-    setEra(settle.beat);
-  }else fitLeg();
+  fitLeg();
 }
 function storyStep(dir){
   if(dir>0){story.beat<ETAK_STORY.length-1?(story.beat++,storyShowBeat()):endStory();}
