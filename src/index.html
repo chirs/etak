@@ -20,6 +20,7 @@
 <div class="modeswitch" role="group" aria-label="Mode">
   <button id="mPuzzle" class="active">PUZZLE</button>
   <button id="mSandbox">SANDBOX</button>
+  <button id="mSettle">SETTLEMENT</button>
 </div>
 
 <div class="frames" role="group" aria-label="Reference frame">
@@ -31,6 +32,17 @@
 
 <div class="chooser" id="chooser">
   <div class="ttl">candidate references</div>
+</div>
+
+<div class="chooser hidden" id="eraList">
+  <div class="ttl">eras</div>
+</div>
+
+<div class="storycard settle hidden" id="settleCard">
+  <button class="close" id="settleClose" aria-label="Back to the era">✕</button>
+  <div class="era" id="settleEra"></div>
+  <h2 id="settleTitle"></h2>
+  <p id="settleText"></p>
 </div>
 
 <div class="storycard hidden" id="storyCard">

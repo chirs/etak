@@ -59,15 +59,20 @@ discrete third state faded through night by `b` (different projection — no ble
   picker, which repositions the whole sky); the current house's physical star glows amber.
   Pure screen space; chart pan/zoom are disabled while active.
 
-Two **modes**:
+Three **modes**:
 - **PUZZLE**: a documented real passage with 4 real candidate islands; pick the one that best
   segments the voyage. Score panel + chooser visible. NEW VOYAGE cycles `ETAK_PASSAGES`.
 - **SANDBOX**: one draggable *hypothetical* reference island; free exploration.
+- **SETTLEMENT**: the explorable settlement map — the story's migration arcs over bare
+  coastlines, an era selector (the six story beats), free pan/zoom, and clickable landfalls
+  (`ETAK_PLACES` in `passages.js`) that swap the era card for a place card. The voyage chrome
+  (frames, bar, readout) is hidden; entry lands on the whole-ocean frame.
 
-A **story mode** overlays either: a six-beat walkthrough of the settlement of the Pacific
+A **story mode** overlays any of them: a six-beat walkthrough of the settlement of the Pacific
 (`ETAK_STORY` in `passages.js`; chronology sourced in `docs/sources.md` §4). While `story` is
 set, `draw()` swaps the voyage layers for great-circle migration arcs over the coastlines
-(`drawStory`/`drawStoryLabels`) and `loop()` eases the camera toward `camTarget` beat frames.
+(`drawArcs`/`drawArcLabels`, shared with SETTLEMENT mode, which drives them from its own
+`settle.{beat,tBeat}` state) and `loop()` eases the camera toward `camTarget` beat frames.
 Autoplays on first visit (localStorage `etakStorySeen`), replays from the header button,
 exits via SKIP/ESC or the final SAIL hand-off into the puzzle.
 

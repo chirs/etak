@@ -7,7 +7,7 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { ETAK_STORY } = require(path.join(here, '..', 'src', 'passages.js'));
+const { ETAK_STORY, ETAK_PLACES } = require(path.join(here, '..', 'src', 'passages.js'));
 const { bounds } = require(path.join(here, '..', 'src', 'map-data.js'));
 
 const lon360 = lon => ((lon % 360) + 360) % 360;
@@ -42,4 +42,22 @@ test('the story opens on the whole ocean and ends on the Carolines hand-off', ()
   const last = ETAK_STORY[ETAK_STORY.length - 1];
   assert.match(last.text, /reference island/i, 'final beat hands off to the puzzle');
   assert.match(last.text, /Hipour/, 'final beat cites the 1969 revival');
+});
+
+test('every place is fully written and on the chart', () => {
+  for (const [key, p] of Object.entries(ETAK_PLACES)) {
+    assert.ok(p.name.length > 1, `${key} name`);
+    assert.ok(onChart(p), `${key} off the chart: ${JSON.stringify({ lat: p.lat, lon: p.lon })}`);
+    assert.ok(p.date.length > 3, `${key} date`);
+    assert.ok(p.blurb.length > 60, `${key} blurb too thin`);
+  }
+});
+
+test('every story arc endpoint is a gazetteer place (same object)', () => {
+  const places = new Set(Object.values(ETAK_PLACES));
+  for (const b of ETAK_STORY)
+    for (const a of b.arcs) {
+      assert.ok(places.has(a.from), `${b.title}: from of ${a.name} not in ETAK_PLACES`);
+      assert.ok(places.has(a.to), `${b.title}: to of ${a.name} not in ETAK_PLACES`);
+    }
 });

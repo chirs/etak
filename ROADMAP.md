@@ -106,6 +106,19 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
       revival, Lewis *JPS* 79(4) 1970); Saipan was already inside the chart bounds, no regen needed
 
 
+## Pacific islands explorer
+
+- [x] **SETTLEMENT tab** next to PUZZLE/SANDBOX — the settlement story as a persistent,
+      explorable mode: migration arcs over the chart, an era selector (the six beats), free
+      pan/zoom; the modal walkthrough stays as the first-visit intro / ⟲ replay
+- [x] **Clickable landfalls** — every story waypoint promoted to `ETAK_PLACES` (name, date,
+      sourced blurb); click a place dot for its info card, ✕ back to the era card
+- [ ] Islands clickable in puzzle/sandbox too (same hit-test over `ETAK_ISLANDS`; needs
+      blurbs for the Caroline gazetteer)
+- [ ] Label collision at minimum zoom — the Carolines cluster overlaps when the whole
+      ocean is framed; gate dates (or labels) by zoom the way the rose does
+
+
 ## Second act — from simulator to game
 
 The simulator is built: real chart, real sky, real passages, the settlement story. What's

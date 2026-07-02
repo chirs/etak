@@ -48,6 +48,7 @@ const CFG={
   storyArcSec:1.6,              // story mode: seconds for one migration arc to grow
   storyStagger:0.9,             // story mode: seconds between successive arc starts
   storyFitFrac:0.78,            // story mode: beats frame into this fraction of the viewport
+  placeHitR:14,                 // settlement mode: place click hit radius, screen px
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -71,6 +72,7 @@ function resize(){
   MINZOOM=0.95*Math.min(H/(B0.lonMax-B0.lonMin), W/(B0.latMax-B0.latMin));
   cam.zoom=clamp(cam.zoom,MINZOOM,CFG.maxZoom);
   if(story) camTarget=fitPoints(ETAK_STORY[story.beat].fit.map(project),CFG.storyFitFrac);
+  else if(mode==='settlement') camTarget=fitPoints(ETAK_STORY[settle.beat].fit.map(project),CFG.storyFitFrac);
   else if(A&&B) fitLeg();
 }
 addEventListener('resize',resize);
@@ -373,21 +375,23 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
 // ---------- story mode (the settlement of the Pacific) ----------
 // While `story` is set, draw() swaps the voyage layers for migration arcs over
 // the coastlines and loop() eases the camera toward `camTarget` (beat flights).
+// The arc layers are shared with settlement mode, so they take (beat,tBeat)
+// rather than reading the story state.
 let story=null;            // {beat,tBeat} while the walkthrough is playing
 let camTarget=null;        // {cx,cy,zoom} the camera eases toward
 
-function arcProgress(bi,ai){
-  if(bi<story.beat||reduceMotion)return 1;
-  return Math.max(0,Math.min(1,(story.tBeat-ai*CFG.storyStagger)/CFG.storyArcSec));
+function arcProgress(bi,ai,beat,tBeat){
+  if(bi<beat||reduceMotion)return 1;
+  return Math.max(0,Math.min(1,(tBeat-ai*CFG.storyStagger)/CFG.storyArcSec));
 }
 
-function drawStory(v){
-  for(let bi=0;bi<=story.beat;bi++){
-    const on=bi===story.beat;
+function drawArcs(v,beat,tBeat){
+  for(let bi=0;bi<=beat;bi++){
+    const on=bi===beat;
     ctx.strokeStyle=on?hexA(PAL.amber,0.75):hexA(PAL.ghost,0.55);
     ctx.lineWidth=(on?1.6:1)/v.Z;
     ETAK_STORY[bi].arcs.forEach((arc,ai)=>{
-      const p=arcProgress(bi,ai);
+      const p=arcProgress(bi,ai,beat,tBeat);
       if(p<=0)return;
       const N=48;
       ctx.beginPath();
@@ -403,21 +407,52 @@ function drawStory(v){
   }
 }
 
-function drawStoryLabels(v){
+function drawArcLabels(v,beat,tBeat){
   ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='left';
-  for(let bi=0;bi<=story.beat;bi++){
-    const col=bi===story.beat?hexA(PAL.amber,0.9):hexA(PAL.dim,0.6);
+  for(let bi=0;bi<=beat;bi++){
+    const col=bi===beat?hexA(PAL.amber,0.9):hexA(PAL.dim,0.6);
     ETAK_STORY[bi].arcs.forEach((arc,ai)=>{
       ctx.fillStyle=col;
       if(arc.fromName){
         const s=worldToScreen(project(arc.from),v);
         ctx.fillText(arc.fromName,s.x+7,s.y+3);
       }
-      if(arcProgress(bi,ai)>=1){
+      if(arcProgress(bi,ai,beat,tBeat)>=1){
         const s=worldToScreen(project(arc.to),v);
         ctx.fillText(arc.name+(arc.date?` · ${arc.date}`:''),s.x+7,s.y+3);
       }
     });
+  }
+}
+
+// ---------- settlement mode (the explorable settlement map) ----------
+// A persistent mode: the story's migration arcs over the chart, free pan/zoom,
+// an era selector, and clickable landfalls (ETAK_PLACES) with info cards.
+const settle={beat:ETAK_STORY.length-1,tBeat:0,places:[]};
+let settlePlace=null;      // the clicked ETAK_PLACES entry, or null (era card shown)
+
+// places reached by beats 0..beat, tagged with the arc that lands there so the
+// current beat's labels can wait for their arc to arrive
+function eraPlaces(beat){
+  const seen=new Map();
+  for(let bi=0;bi<=beat;bi++)ETAK_STORY[bi].arcs.forEach((arc,ai)=>{
+    if(!seen.has(arc.from))seen.set(arc.from,{p:arc.from,bi,ai,isTo:false});
+    if(!seen.has(arc.to))seen.set(arc.to,{p:arc.to,bi,ai,isTo:true});
+  });
+  return [...seen.values()];
+}
+
+// screen-space layer: a dot + name/date label per reached place (replaces the
+// story's arc labels here, so every place is labeled once and clickable)
+function drawPlaces(v){
+  ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='left';
+  for(const pe of settle.places){
+    if(pe.isTo&&arcProgress(pe.bi,pe.ai,settle.beat,settle.tBeat)<1)continue;
+    const p=pe.p, hot=p===settlePlace, on=pe.bi===settle.beat;
+    const s=worldToScreen(project(p),v);
+    drawMarker(s,hot?PAL.refFill:PAL.island,hot?hexA(PAL.amber,0.5):null,hot?5.5:3.5);
+    ctx.fillStyle=hot?PAL.amber:hexA(on?PAL.amber:PAL.dim,on?0.9:0.75);
+    ctx.fillText(p.name+(p.date?` · ${p.date}`:''),s.x+8,s.y+3);
   }
 }
 
@@ -637,9 +672,13 @@ function draw(){
     ctx.save();applyTransform(v);
     drawCoast(v);
     if(story){                     // story mode: migration arcs over bare coastlines
-      drawStory(v);
+      drawArcs(v,story.beat,story.tBeat);
       ctx.restore();
-      drawStoryLabels(v);
+      drawArcLabels(v,story.beat,story.tBeat);
+    }else if(mode==='settlement'){ // settlement mode: the same arcs, plus clickable places
+      drawArcs(v,settle.beat,settle.tBeat);
+      ctx.restore();
+      drawPlaces(v);
     }else{
       drawRangeRings(v);
       drawCourse(v,Aw,Bw);
@@ -766,19 +805,64 @@ addEventListener('keydown',e=>{
 function frameActive(btn){document.querySelectorAll('.frames button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
 
 const mPuzzle=document.getElementById('mPuzzle'),mSandbox=document.getElementById('mSandbox');
+const mSettle=document.getElementById('mSettle');
 const newBtn=document.getElementById('newBtn'),subEl=document.getElementById('sub');
+const framesEl=document.querySelector('.frames'),barEl=document.querySelector('.bar');
 function setMode(m){
   mode=m;
   mPuzzle.classList.toggle('active',m==='puzzle');
   mSandbox.classList.toggle('active',m==='sandbox');
+  mSettle.classList.toggle('active',m==='settlement');
   chooserEl.classList.toggle('hidden',m!=='puzzle');
   newBtn.classList.toggle('hidden',m!=='puzzle');
-  if(m==='puzzle'){makePuzzle();}
+  eraList.classList.toggle('hidden',m!=='settlement');
+  settleCard.classList.toggle('hidden',m!=='settlement');
+  framesEl.classList.toggle('hidden',m==='settlement');
+  barEl.classList.toggle('hidden',m==='settlement');
+  readoutEl.classList.toggle('hidden',m==='settlement');
+  if(m==='settlement'){
+    setPlaying(false);fTarget=0;bTarget=0;departWrap.classList.add('hidden');
+    frameActive(document.getElementById('fChart'));
+    subEl.textContent='How the Pacific was settled. Pick an era; click a landfall for its story. Scroll to zoom, drag the sea to pan.';
+    setEra(settle.beat);
+    // land on the whole ocean (beat 0's frame), whatever era is selected
+    camTarget=fitPoints(ETAK_STORY[0].fit.map(project),CFG.storyFitFrac);
+  }
+  else if(m==='puzzle'){makePuzzle();}
   else{subEl.textContent='Free exploration. Drag the reference island; watch how its position reshapes the etaks. Scroll to zoom, drag the sea to pan.';makeSandbox();}
 }
 mPuzzle.addEventListener('click',()=>setMode('puzzle'));
 mSandbox.addEventListener('click',()=>setMode('sandbox'));
+mSettle.addEventListener('click',()=>setMode('settlement'));
 newBtn.addEventListener('click',()=>{passageIndex=(passageIndex+1)%ETAK_PASSAGES.length;makePuzzle();});
+
+// ---------- settlement mode control ----------
+const eraList=document.getElementById('eraList');
+const settleCard=document.getElementById('settleCard');
+const settleEra=document.getElementById('settleEra'),settleTitle=document.getElementById('settleTitle');
+const settleText=document.getElementById('settleText');
+function showEraCard(){
+  settlePlace=null;
+  const bt=ETAK_STORY[settle.beat];
+  settleEra.textContent=bt.era;settleTitle.textContent=bt.title;settleText.textContent=bt.text;
+}
+function showPlaceCard(p){
+  settlePlace=p;
+  settleEra.textContent=p.date;settleTitle.textContent=p.name;settleText.textContent=p.blurb;
+}
+function setEra(i){
+  settle.beat=i;settle.tBeat=0;settle.places=eraPlaces(i);
+  [...eraList.querySelectorAll('button')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
+  camTarget=fitPoints(ETAK_STORY[i].fit.map(project),CFG.storyFitFrac);
+  showEraCard();
+}
+ETAK_STORY.forEach((bt,i)=>{
+  const btn=document.createElement('button');
+  btn.innerHTML=`<span>${bt.title}</span>`;
+  btn.addEventListener('click',()=>setEra(i));
+  eraList.appendChild(btn);
+});
+document.getElementById('settleClose').addEventListener('click',showEraCard);
 
 // ---------- story mode control ----------
 const storyCard=document.getElementById('storyCard');
@@ -800,6 +884,7 @@ function startStory(){
   story={beat:0,tBeat:0};
   storyChrome.forEach(el=>el.classList.add('hidden'));
   chooserEl.classList.add('hidden');newBtn.classList.add('hidden');departWrap.classList.add('hidden');
+  eraList.classList.add('hidden');settleCard.classList.add('hidden');
   storyCard.classList.remove('hidden');
   storyShowBeat();
 }
@@ -810,7 +895,11 @@ function endStory(){
   storyChrome.forEach(el=>el.classList.remove('hidden'));
   chooserEl.classList.toggle('hidden',mode!=='puzzle');
   newBtn.classList.toggle('hidden',mode!=='puzzle');
-  fitLeg();
+  if(mode==='settlement'){             // restore the settlement chrome, not the voyage's
+    framesEl.classList.add('hidden');barEl.classList.add('hidden');readoutEl.classList.add('hidden');
+    eraList.classList.remove('hidden');settleCard.classList.remove('hidden');
+    setEra(settle.beat);
+  }else fitLeg();
 }
 function storyStep(dir){
   if(dir>0){story.beat<ETAK_STORY.length-1?(story.beat++,storyShowBeat()):endStory();}
@@ -827,7 +916,8 @@ addEventListener('keydown',e=>{
 });
 
 // ---------- camera + sandbox drag (chart frame) ----------
-let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | null
+let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | 'gaze' | null
+let downX=0,downY=0;                 // pointerdown position (settlement click-vs-drag)
 canvas.addEventListener('pointerdown',e=>{
   if(story)return;                     // camera belongs to the story flights
   if(bTarget===1){                     // aboard: drag turns your gaze
@@ -837,7 +927,7 @@ canvas.addEventListener('pointerdown',e=>{
     const cs=worldToScreen(project(C));
     if(Math.hypot(cs.x-e.clientX,cs.y-e.clientY)<CFG.refHitR){dragMode='ref';canvas.setPointerCapture(e.pointerId);return;}
   }
-  if(ease(f)<0.5){dragMode='pan';lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);}
+  if(ease(f)<0.5){dragMode='pan';downX=lastX=e.clientX;downY=lastY=e.clientY;canvas.setPointerCapture(e.pointerId);}
 });
 canvas.addEventListener('pointermove',e=>{
   if(dragMode==='gaze'){
@@ -849,12 +939,25 @@ canvas.addEventListener('pointermove',e=>{
   else if(dragMode==='pan'){
     const a=screenToWorld(lastX,lastY),b=screenToWorld(e.clientX,e.clientY);
     cam.cx+=a.x-b.x;cam.cy+=a.y-b.y;lastX=e.clientX;lastY=e.clientY;
+    camTarget=null;                    // the hand interrupts any camera flight
   }
 });
-canvas.addEventListener('pointerup',()=>{dragMode=null;});
+canvas.addEventListener('pointerup',e=>{
+  // settlement: a still click (not a pan) hits a place → its card; empty sea → era card
+  if(mode==='settlement'&&dragMode==='pan'&&Math.hypot(e.clientX-downX,e.clientY-downY)<4){
+    const v=viewParams();
+    const hit=settle.places.find(pe=>{
+      const s=worldToScreen(project(pe.p),v);
+      return Math.hypot(s.x-e.clientX,s.y-e.clientY)<CFG.placeHitR;
+    });
+    hit?showPlaceCard(hit.p):showEraCard();
+  }
+  dragMode=null;
+});
 canvas.addEventListener('wheel',e=>{
   e.preventDefault();
   if(story||bTarget===1)return;        // no zoom during the story or from the boat
+  camTarget=null;                      // the hand interrupts any camera flight
   const before=screenToWorld(e.clientX,e.clientY);
   cam.zoom=clamp(cam.zoom*(e.deltaY<0?CFG.zoomStep:1/CFG.zoomStep),MINZOOM,CFG.maxZoom);
   const after=screenToWorld(e.clientX,e.clientY);
@@ -870,6 +973,7 @@ function loop(now){
   f+=(fTarget-f)*Math.min(1,dt*fSpeed);if(Math.abs(fTarget-f)<0.001)f=fTarget;
   b+=(bTarget-b)*Math.min(1,dt*fSpeed);if(Math.abs(bTarget-b)<0.001)b=bTarget;
   if(story)story.tBeat+=dt;
+  else if(mode==='settlement')settle.tBeat+=dt;
   if(camTarget){                       // story camera flight (zoom eased in log space)
     const k=Math.min(1,dt*(reduceMotion?CFG.fEaseReduced:CFG.storyEase));
     cam.cx+=(camTarget.cx-cam.cx)*k;cam.cy+=(camTarget.cy-cam.cy)*k;
