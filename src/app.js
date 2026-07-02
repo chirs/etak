@@ -57,6 +57,10 @@ const CFG={
   waveAlpha:0.05,               // ocean surface: line alpha
   waveSpeed:0.5,                // ocean surface: base phase drift, rad/s
   starHitR:16,                  // boat view: compass-star click hit radius, screen px
+  swellN:10,                    // boat view: rolling swell lines below the horizon
+  swellSpeed:0.35,              // boat view: swell roll rate, lines per second
+  swellAmp:7,                   // boat view: swell undulation at the bow, px (fades aft of the horizon)
+  swellAlpha:0.16,              // boat view: swell line alpha at the bow
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -574,6 +578,25 @@ function drawBoatView(cn,refDeg,cur){
     if(!inView(relAz(i*HOUSE)))continue;
     const x=azX(i*HOUSE);
     ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(vpx,vpy);ctx.stroke();
+  }
+
+  // swell: horizon-parallel lines rolling toward the viewer with perspective,
+  // undulating over azimuth (so turning the gaze pans the pattern with the sky).
+  // A line's cycle ends exactly at the screen bottom, so the wrap is invisible.
+  const ph=reduceMotion?0:performance.now()/1000;
+  for(let k=0;k<CFG.swellN;k++){
+    const u=((k+ph*CFG.swellSpeed)%CFG.swellN)/CFG.swellN;
+    const d=u*u;                                 // perspective: crowd near the horizon
+    const y0=hy+2+d*(H-hy-2);
+    ctx.strokeStyle=hexA(PAL.wave,CFG.swellAlpha*(0.2+0.8*u));
+    ctx.beginPath();
+    for(let x=0;x<=W+CFG.waveSeg;x+=CFG.waveSeg){
+      const az=(x-W/2)/pxDeg+hdg+look;
+      const dy=(0.15+0.85*d)*CFG.swellAmp*
+        (Math.sin(az*0.5+u*7+ph*0.7)+0.6*Math.sin(az*1.3+u*3-ph*1.1))/1.6;
+      x?ctx.lineTo(x,y0+dy):ctx.moveTo(x,y0+dy);
+    }
+    ctx.stroke();
   }
 
   // horizon: soft glow under a crisp line
