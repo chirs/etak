@@ -50,3 +50,28 @@ test('a reference in line with the course yields ~1 segment', () => {
   const s = EtakCore.scoreFor(Puluwat, Chuuk, inline);
   assert.ok(s.segs <= 2, `expected ~1 segment, got ${s.segs}`);
 });
+
+test('houseOf wraps around north (house 0 straddles 0°)', () => {
+  assert.equal(EtakCore.houseOf(359.9), 0);
+  assert.equal(EtakCore.houseOf(0), 0);
+  assert.equal(EtakCore.houseOf(5.624), 0);   // just inside house 0
+  assert.equal(EtakCore.houseOf(5.626), 1);   // just past the half-house edge
+});
+
+test('a well-abeam reference outscores an on-course-line one', () => {
+  // The invariant the puzzles rest on: Pisaras abeam of Puluwat->Chuuk is a good
+  // reference; Satawal sits nearly on the Puluwat->Lamotrek course line and is not.
+  const Lamotrek = { lat: 7.4833, lon: 146.3333 };
+  const Pisaras  = { lat: 8.569,  lon: 150.4185 };
+  const abeam  = EtakCore.scoreFor(Puluwat, Chuuk, Pisaras);
+  const inline = EtakCore.scoreFor(Puluwat, Lamotrek, Satawal);
+  assert.ok(abeam.total > inline.total,
+    `abeam ${abeam.total} should beat inline ${inline.total}`);
+});
+
+test('reversing the leg preserves the etak boundary count', () => {
+  const Pisaras = { lat: 8.569, lon: 150.4185 };
+  const fwd = EtakCore.boundariesFor(Puluwat, Chuuk, Pisaras);
+  const rev = EtakCore.boundariesFor(Chuuk, Puluwat, Pisaras);
+  assert.equal(fwd.length, rev.length);
+});
