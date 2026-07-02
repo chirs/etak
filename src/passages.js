@@ -135,7 +135,7 @@ const ETAK_STORY = (() => {
       text: 'The Pacific covers more of the planet than all dry land combined. Nearly every ' +
             'habitable island in it was found and settled by people sailing canoes — without ' +
             'metal, writing, or instruments. This chart is their sea. This is how it happened.',
-      fit: [{ lat: 55, lon: 115 }, { lat: -48, lon: -72 }],
+      fit: [{ lat: 55, lon: 115 }, { lat: -48, lon: -150 }],   // Asia out past Hawaiʻi
       arcs: [],
     },
     {
