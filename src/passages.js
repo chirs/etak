@@ -13,6 +13,8 @@ const ETAK_ISLANDS = {
   elato:    { name: 'ELATO',     lat: 7.47,   lon: 146.18   },
   chuuk:    { name: 'CHUUK',     lat: 7.42,   lon: 151.78   },
   pisaras:  { name: 'PISARAS',   lat: 8.569,  lon: 150.4185 },
+  gaferut:  { name: 'GAFERUT',   lat: 9.2283, lon: 145.3843 },
+  saipan:   { name: 'SAIPAN',    lat: 15.18,  lon: 145.75   },
 };
 
 // Each passage: a real leg (from -> to) and four real islands offered as
@@ -37,6 +39,24 @@ const ETAK_PASSAGES = [
     from: 'puluwat', to: 'lamotrek',
     candidates: ['pisaras', 'satawal', 'westfayu', 'pulusuk'],
     note: 'A long westward run. Satawal lies almost on the course line itself — its bearing barely moves.',
+  },
+  {
+    name: 'Satawal → Pikelot',
+    from: 'satawal', to: 'pikelot',
+    candidates: ['westfayu', 'puluwat', 'lamotrek', 'pulusuk'],
+    note: 'The turtle-hunting run to uninhabited Pikelot. West Fayu sits cleanly abeam to the west.',
+  },
+  {
+    name: 'Satawal → West Fayu',
+    from: 'satawal', to: 'westfayu',
+    candidates: ['lamotrek', 'elato', 'pikelot', 'puluwat'],
+    note: 'A short northward hop. Lamotrek and Elato are near-twins to the southwest — seven miles apart.',
+  },
+  {
+    name: 'Pikelot → Saipan',
+    from: 'pikelot', to: 'saipan',
+    candidates: ['pisaras', 'chuuk', 'gaferut', 'westfayu'],
+    note: 'Hipour’s 1969 revival — 450 nm of open sea that no island segments; the seaway of ghost islands.',
   },
 ];
 

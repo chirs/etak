@@ -74,9 +74,11 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
 
 ## More passages
 
-- [ ] Add the near-free legs — the gazetteer already has the islands (e.g. Puluwat→Pikelot,
+- [x] Add the near-free legs — the gazetteer already has the islands (e.g. Puluwat→Pikelot,
       Satawal→West Fayu, a documented turtle-hunting run); curate candidate sets with one clear
-      answer + instructive traps, as before
-- [ ] Research one longer documented voyage (e.g. the 1970s revival sailings toward Saipan) —
+      answer + instructive traps, as before — added Satawal→Pikelot (turtle run) and
+      Satawal→West Fayu (Lamotrek/Elato near-twins)
+- [x] Research one longer documented voyage (e.g. the 1970s revival sailings toward Saipan) —
       needs new gazetteer coordinates sourced into `docs/sources.md` §3, and possibly wider chart
-      bounds (`tools/build_map.py` constants + regenerate)
+      bounds (`tools/build_map.py` constants + regenerate) — added Pikelot→Saipan (Hipour's 1969
+      revival, Lewis *JPS* 79(4) 1970); Saipan was already inside the chart bounds, no regen needed

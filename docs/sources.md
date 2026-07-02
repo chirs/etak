@@ -147,6 +147,8 @@ independently re-checked in this pass.
 | West Fayu | 8.08 | 146.72 | [atlas] | uninhabited islet. |
 | Elato | 7.47 | 146.18 | [atlas] | just W of Lamotrek. |
 | Chuuk (Truk) | 7.42 | 151.78 | [atlas] | eastern terminus of the Puluwat–Truk run. |
+| Gaferut | 9.2283 | 145.3843 | [atlas] | uninhabited; northernmost of eastern Yap outliers (mapcarta/geoview corroborated). In the traditional Marianas seaway schema it is the "dorsal fin" (Saipan ventral fin, Guam tail — Riesenberg 1975). |
+| Saipan | 15.18 | 145.75 | [atlas] | Northern Marianas; terminus of the revived Carolinian seaway. |
 
 **Documented courses & distances:**
 
@@ -159,8 +161,15 @@ independently re-checked in this pass.
 - **[caution]** **Satawal → Guam** (~500 nmi NW): steer on rising **Sirius** (~107° az), transition
   to **Canopus** (rising ~145°, setting ~217°); Altair setting (~278°) near Guam confirms latitude.
   *(Azimuths from a secondary/AI-summarized source — sanity-check before use.)*
-- **[verified]** Canoe speed (Gladwin's measurement of a Carolinian proa): **~5.3 kn** with wind
-  abeam, **~5.4 kn** downwind. *(blog-sourced but consistent with the primary account.)*
+- **[verified]** **Puluwat → Saipan (the 1969 revival):** the navigator **Hipour** (Weriyeng school,
+  Puluwat) piloted David Lewis's ketch *Isbjorn* from Puluwat to Saipan **and back** using
+  traditional methods only — the first traditional crossing of that seaway in ~60 years. Route:
+  Puluwat → **Pikelot** (~100 mi stop), then ~**450 mi of open sea** to Saipan. Written up in
+  Lewis, "Return Voyage Between Puluwat and Saipan Using Micronesian Navigational Techniques,"
+  *JPS* 79(4), 1970, and in *We, the Navigators*. Note for the app: past the first ~100 mi there is
+  **no real island positioned to segment the leg** — this is the seaway where the lore leans on
+  **ghost islands** (Gunn 1980; Riesenberg 1975) and star courses with latitude checks, so *every*
+  etak candidate scores mediocre. That is the instructive point, not a curation failure.
 
 → *For the app:* the **Puluwat → Truk on rising Altair, reference island Pisaras** run is the
 cleanest authentic replacement for the generated puzzle — real endpoints, a real abeam reference,
