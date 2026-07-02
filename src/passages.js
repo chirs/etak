@@ -108,68 +108,68 @@ const ETAK_COMPASS = [
 // (one point per island group) — story landmarks, distinct from ETAK_ISLANDS.
 // Chronology and framing from docs/sources.md §4.
 const ETAK_PLACES = {
-  taiwan:   { name: 'TAIWAN',      lat: 22.75,  lon: 121.15,  date: '~3000 BCE',
+  taiwan:   { name: 'TAIWAN',      lat: 22.75,  lon: 121.15,  date: '~3000 BCE', year: -3000,
     blurb: 'The Austronesian homeland. The farmers and fishers who crossed to Luzon from ' +
            'here spoke the ancestor of a language family that now stretches from Madagascar ' +
            'to Rapa Nui — and carried the boats that made the whole expansion possible.' },
-  luzon:    { name: 'LUZON',       lat: 18.0,   lon: 121.7,   date: '~2200 BCE',
+  luzon:    { name: 'LUZON',       lat: 18.0,   lon: 121.7,   date: '~2200 BCE', year: -2200,
     blurb: 'First step of the dispersal: Neolithic farmers crossed the Luzon Strait from ' +
            'Taiwan around 2200 BCE and spread south through the Philippine archipelago.' },
-  halmahera:{ name: 'HALMAHERA',   lat: -1.4,   lon: 128.2,   date: '~2000 BCE',
+  halmahera:{ name: 'HALMAHERA',   lat: -1.4,   lon: 128.2,   date: '~2000 BCE', year: -2000,
     blurb: 'Through island Southeast Asia the migrants mixed with earlier peoples, spread ' +
            'island to island, and refined the outrigger canoe — the vessel behind every ' +
            'later crossing.' },
-  guam:     { name: 'GUAM',        lat: 13.45,  lon: 144.75,  date: '~1500 BCE',
+  guam:     { name: 'GUAM',        lat: 13.45,  lon: 144.75,  date: '~1500 BCE', year: -1500,
     blurb: 'The Marianas crossing — some 2,000 km of open water from the Philippines — was ' +
            'the longest sea passage humanity had made to that date, and the first landfall ' +
            'in Remote Oceania.' },
-  bismarcks:{ name: 'BISMARCKS',   lat: -4.2,   lon: 152.2,   date: '~1350 BCE',
+  bismarcks:{ name: 'BISMARCKS',   lat: -4.2,   lon: 152.2,   date: '~1350 BCE', year: -1350,
     blurb: 'Staging ground of the Lapita people, whose dentate-stamped pottery traces the ' +
            'leap past the Solomons into empty ocean.' },
-  santacruz:{ name: 'SANTA CRUZ',  lat: -10.7,  lon: 165.8,   date: '~1100 BCE',
+  santacruz:{ name: 'SANTA CRUZ',  lat: -10.7,  lon: 165.8,   date: '~1100 BCE', year: -1100,
     blurb: 'Just past the edge of island intervisibility: the first landfall in that ocean ' +
            'that could not be seen from any island behind it.' },
-  vanuatu:  { name: 'VANUATU',     lat: -17.7,  lon: 168.3,   date: '~1000 BCE',
+  vanuatu:  { name: 'VANUATU',     lat: -17.7,  lon: 168.3,   date: '~1000 BCE', year: -1000,
     blurb: 'Lapita canoes ran down the Vanuatu arc within a few generations of leaving the ' +
            'Solomons, and New Caledonia soon after.' },
-  fiji:     { name: 'FIJI',        lat: -17.8,  lon: 178.0,   date: '~950 BCE',
+  fiji:     { name: 'FIJI',        lat: -17.8,  lon: 178.0,   date: '~950 BCE', year: -950,
     blurb: 'The gateway between Melanesia and Polynesia: Lapita settlers reached Fiji ' +
            'around 950 BCE and pressed on east.' },
-  tonga:    { name: 'TONGA',       lat: -21.13, lon: -175.2,  date: '~880 BCE',
+  tonga:    { name: 'TONGA',       lat: -21.13, lon: -175.2,  date: '~880 BCE', year: -880,
     blurb: 'Dated to ~880 BCE by uranium-series coral — one of the sharpest dates in the ' +
            'whole expansion. With Samoa, the cradle where Polynesian culture formed.' },
-  samoa:    { name: 'SAMOA',       lat: -13.9,  lon: -171.75, date: '~850 BCE',
+  samoa:    { name: 'SAMOA',       lat: -13.9,  lon: -171.75, date: '~850 BCE', year: -850,
     blurb: 'The eastern edge of the Lapita world. Here the expansion stopped for nearly two ' +
            'thousand years — the "long pause" whose cause is still argued.' },
-  tahiti:   { name: 'TAHITI',      lat: -17.65, lon: -149.42, date: '~1050 CE',
+  tahiti:   { name: 'TAHITI',      lat: -17.65, lon: -149.42, date: '~1050 CE', year: 1050,
     blurb: 'When the pause broke, the Society Islands became the new hub: from here the far ' +
            'corners of the Polynesian triangle were reached within two centuries.' },
-  marquesas:{ name: 'MARQUESAS',   lat: -8.9,   lon: -140.1,  date: '~1150 CE',
+  marquesas:{ name: 'MARQUESAS',   lat: -8.9,   lon: -140.1,  date: '~1150 CE', year: 1150,
     blurb: 'High volcanic islands upwind to the northeast — a hard windward gain, and a ' +
            'springboard for the long run north to Hawaiʻi.' },
-  hawaii:   { name: 'HAWAIʻI',     lat: 19.6,   lon: -155.5,  date: '~1200 CE',
+  hawaii:   { name: 'HAWAIʻI',     lat: 19.6,   lon: -155.5,  date: '~1200 CE', year: 1200,
     blurb: 'The northern corner of the triangle: roughly 4,000 km from Tahiti, across the ' +
            'doldrums and into a different sky of stars.' },
-  rapanui:  { name: 'RAPA NUI',    lat: -27.11, lon: -109.35, date: '~1200 CE',
+  rapanui:  { name: 'RAPA NUI',    lat: -27.11, lon: -109.35, date: '~1200 CE', year: 1200,
     blurb: 'The eastern corner of the triangle and the most remote inhabited island on ' +
            'earth — a target a few kilometres wide, found across thousands of empty miles.' },
-  aotearoa: { name: 'AOTEAROA',    lat: -35.5,  lon: 173.8,   date: '~1250 CE',
+  aotearoa: { name: 'AOTEAROA',    lat: -35.5,  lon: 173.8,   date: '~1250 CE', year: 1250,
     blurb: 'The southern corner of the triangle and the last great landmass on the planet ' +
            'reached by humans — the end of the longest colonization arc in history.' },
-  pohnpei:  { name: 'POHNPEI',     lat: 6.85,   lon: 158.2,   date: '~100 CE',
+  pohnpei:  { name: 'POHNPEI',     lat: 6.85,   lon: 158.2,   date: '~100 CE', year: 100,
     blurb: 'Eastern Micronesia was settled around 2,000 years ago from the Lapita sphere to ' +
            'the southeast — a second stream, separate from the push into Polynesia.' },
-  chuuk:    { name: 'CHUUK',       lat: 7.42,   lon: 151.78,  date: '~100 CE',
+  chuuk:    { name: 'CHUUK',       lat: 7.42,   lon: 151.78,  date: '~100 CE', year: 150,
     blurb: 'A high lagoon at the eastern head of the Chuukic-speaking chain. From here ' +
            'settlers worked westward, atoll by atoll.' },
-  puluwat:  { name: 'PULUWAT',     lat: 7.35,   lon: 149.20,  date: '~1st millennium CE',
+  puluwat:  { name: 'PULUWAT',     lat: 7.35,   lon: 149.20,  date: '~1st millennium CE', year: 600,
     blurb: 'A low atoll west of Chuuk and one of the great schools of traditional ' +
            'navigation — home of Hipour, and the setting of Gladwin’s East Is a Big Bird.' },
-  lamotrek: { name: 'LAMOTREK',    lat: 7.48,   lon: 146.33,  date: 'by ~1000 CE',
+  lamotrek: { name: 'LAMOTREK',    lat: 7.48,   lon: 146.33,  date: 'by ~1000 CE', year: 1000,
     blurb: 'Near the western end of the Chuukic chain — the low Carolines were filled from ' +
            'the east — and one of the atolls where the star compass and etak survived into ' +
            'the present.' },
-  saipan:   { name: 'SAIPAN',      lat: 15.18,  lon: 145.75,  date: '~1500 BCE',
+  saipan:   { name: 'SAIPAN',      lat: 15.18,  lon: 145.75,  date: '~1500 BCE', year: -1500,
     blurb: 'Settled with the rest of the Marianas around 1500 BCE. In 1969 the Puluwat ' +
            'navigator Hipour made landfall here without instruments, reopening the old seaway.' },
 };

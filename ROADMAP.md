@@ -113,6 +113,10 @@ A third frame alongside CHART and NAVIGATOR: what the navigator actually sees.
       pan/zoom; the modal walkthrough stays as the first-visit intro / ⟲ replay
 - [x] **Clickable landfalls** — every story waypoint promoted to `ETAK_PLACES` (name, date,
       sourced blurb); click a place dot for its info card, ✕ back to the era card
+- [x] **Year timeline** — the bar becomes a time slider (~2350 BCE → 1250 CE, numeric
+      `year` per place); arcs grow toward their landfall year, gated on their origin's own
+      settlement so voyages run in true chronological order; play/scrub the whole expansion,
+      era buttons play just their era's years; slider at the end = every connection at once
 - [ ] Islands clickable in puzzle/sandbox too (same hit-test over `ETAK_ISLANDS`; needs
       blurbs for the Caroline gazetteer)
 - [ ] Label collision at minimum zoom — the Carolines cluster overlaps when the whole

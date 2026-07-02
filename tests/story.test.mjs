@@ -50,7 +50,16 @@ test('every place is fully written and on the chart', () => {
     assert.ok(onChart(p), `${key} off the chart: ${JSON.stringify({ lat: p.lat, lon: p.lon })}`);
     assert.ok(p.date.length > 3, `${key} date`);
     assert.ok(p.blurb.length > 60, `${key} blurb too thin`);
+    assert.ok(Number.isFinite(p.year) && p.year >= -3100 && p.year <= 1300,
+      `${key} year ${p.year} outside the settlement span`);
   }
+});
+
+test('settlement arcs run in chronological order (origin settled before landfall)', () => {
+  for (const b of ETAK_STORY.slice(0, -1))     // final beat is the 1969 coda, not settlement
+    for (const a of b.arcs)
+      assert.ok(a.from.year <= a.to.year,
+        `${b.title}: ${a.name} lands ${a.to.year} before its origin (${a.from.year})`);
 });
 
 test('every story arc endpoint is a gazetteer place (same object)', () => {

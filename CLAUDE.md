@@ -65,10 +65,13 @@ Three **modes**:
 - **PUZZLE**: a documented real passage with 4 real candidate islands; pick the one that best
   segments the voyage. Score panel + chooser visible. NEW VOYAGE cycles `ETAK_PASSAGES`.
 - **SANDBOX**: one draggable *hypothetical* reference island; free exploration.
-- **SETTLEMENT**: the explorable settlement map — the story's migration arcs over bare
-  coastlines, an era selector (the six story beats), free pan/zoom, and clickable landfalls
-  (`ETAK_PLACES` in `passages.js`) that swap the era card for a place card. The voyage chrome
-  (frames, bar, readout) is hidden; entry lands on the whole-ocean frame.
+- **SETTLEMENT**: the explorable settlement map — every migration arc over bare coastlines,
+  driven by a **year timeline** (`TL` in `app.js`): the bottom bar becomes a time slider from
+  ~2350 BCE to 1250 CE, each arc grows toward its landfall year (`ETAK_PLACES[..].year`) and
+  starts no earlier than its origin's own settlement, so voyages unfold chronologically. Era
+  buttons fly the camera and play that era's years; landfalls are clickable (`ETAK_PLACES`
+  cards); Hipour's 1969 arc is a coda drawn only on the final era. Frames/readout/story-link
+  are hidden; entry always opens on beat 0, the whole ocean.
 
 A **story mode** overlays any of them: a six-beat walkthrough of the settlement of the Pacific
 (`ETAK_STORY` in `passages.js`; chronology sourced in `docs/sources.md` §4). While `story` is

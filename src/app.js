@@ -49,6 +49,8 @@ const CFG={
   storyStagger:0.9,             // story mode: seconds between successive arc starts
   storyFitFrac:0.78,            // story mode: beats frame into this fraction of the viewport
   placeHitR:14,                 // settlement mode: place click hit radius, screen px
+  arcYears:150,                 // settlement timeline: max years a voyage arc takes to cross
+  yearRate:100,                 // settlement timeline: years per second at speed 1
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -426,32 +428,64 @@ function drawArcLabels(v,beat,tBeat){
 }
 
 // ---------- settlement mode (the explorable settlement map) ----------
-// A persistent mode: the story's migration arcs over the chart, free pan/zoom,
-// an era selector, and clickable landfalls (ETAK_PLACES) with info cards.
-const settle={beat:0,tBeat:0,places:[]};
+// A persistent mode: every migration arc on one chart, driven by a year
+// timeline — the bottom bar becomes a time slider from the first departure
+// (~2350 BCE) to the last landfall (1250 CE). Each arc grows toward its
+// landfall year and can start no earlier than its origin's own settlement,
+// so voyages unfold in true chronological order. Landfalls are clickable.
+const TL=(()=>{
+  const last=ETAK_STORY.length-1;
+  const arcs=[], eras=ETAK_STORY.map(()=>({start:Infinity,end:-Infinity}));
+  ETAK_STORY.forEach((bt,bi)=>bt.arcs.forEach(arc=>{
+    if(bi===last){arcs.push({arc,coda:true});return;}   // Hipour 1969: a coda, not settlement
+    const end=arc.to.year, start=Math.max(arc.from.year,end-CFG.arcYears);
+    arcs.push({arc,start,end});
+    eras[bi].start=Math.min(eras[bi].start,start);
+    eras[bi].end=Math.max(eras[bi].end,end);
+  }));
+  const spans=arcs.filter(a=>!a.coda);
+  const min=Math.min(...spans.map(a=>a.start)), max=Math.max(...spans.map(a=>a.end));
+  eras[0]={start:min,end:min};      // the empty ocean
+  eras[last]={start:max,end:max};   // everything drawn, plus the coda arc
+  return {arcs,eras,min,max};
+})();
+const settle={beat:0,year:TL.min,playing:false,until:TL.max};
 let settlePlace=null;      // the clicked ETAK_PLACES entry, or null (era card shown)
+const yearText=y=>{const r=Math.round(y/10)*10;return r<0?`${-r} BCE`:`${r} CE`;};
 
-// places reached by beats 0..beat, tagged with the arc that lands there so the
-// current beat's labels can wait for their arc to arrive
-function eraPlaces(beat){
-  const seen=new Map();
-  for(let bi=0;bi<=beat;bi++)ETAK_STORY[bi].arcs.forEach((arc,ai)=>{
-    if(!seen.has(arc.from))seen.set(arc.from,{p:arc.from,bi,ai,isTo:false});
-    if(!seen.has(arc.to))seen.set(arc.to,{p:arc.to,bi,ai,isTo:true});
-  });
-  return [...seen.values()];
+// world-space layer: every arc at its progress for the current year —
+// growing arcs amber, completed ones ghosted
+function drawTimeline(v){
+  const N=48;
+  for(const e of TL.arcs){
+    if(e.coda&&settle.beat!==ETAK_STORY.length-1)continue;
+    const p=e.coda?1:clamp((settle.year-e.start)/(e.end-e.start||1),0,1);
+    if(p<=0)continue;
+    const on=e.coda||p<1;
+    ctx.strokeStyle=on?hexA(PAL.amber,0.75):hexA(PAL.ghost,0.55);
+    ctx.lineWidth=(on?1.6:1)/v.Z;
+    ctx.beginPath();
+    for(let i=0;i<=N;i++){
+      const w=project(gcInterp(e.arc.from,e.arc.to,p*i/N));
+      i?ctx.lineTo(w.x,w.y):ctx.moveTo(w.x,w.y);
+    }
+    ctx.stroke();
+    const hw=project(gcInterp(e.arc.from,e.arc.to,p));  // head while growing, landfall once there
+    ctx.fillStyle=on?PAL.amber:hexA(PAL.ghost,0.8);
+    ctx.beginPath();ctx.arc(hw.x,hw.y,(p<1?3:2.2)/v.Z,0,7);ctx.fill();
+  }
 }
 
-// screen-space layer: a dot + name/date label per reached place (replaces the
-// story's arc labels here, so every place is labeled once and clickable)
+// screen-space layer: a dot + name/date label per place reached by the
+// current year (so every landfall is labeled once and clickable)
 function drawPlaces(v){
   ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='left';
-  for(const pe of settle.places){
-    if(pe.isTo&&arcProgress(pe.bi,pe.ai,settle.beat,settle.tBeat)<1)continue;
-    const p=pe.p, hot=p===settlePlace, on=pe.bi===settle.beat;
+  for(const p of Object.values(ETAK_PLACES)){
+    if(p.year>settle.year)continue;
+    const hot=p===settlePlace;
     const s=worldToScreen(project(p),v);
     drawMarker(s,hot?PAL.refFill:PAL.island,hot?hexA(PAL.amber,0.5):null,hot?5.5:3.5);
-    ctx.fillStyle=hot?PAL.amber:hexA(on?PAL.amber:PAL.dim,on?0.9:0.75);
+    ctx.fillStyle=hot?PAL.amber:hexA(PAL.dim,0.8);
     ctx.fillText(p.name+(p.date?` · ${p.date}`:''),s.x+8,s.y+3);
   }
 }
@@ -675,8 +709,8 @@ function draw(){
       drawArcs(v,story.beat,story.tBeat);
       ctx.restore();
       drawArcLabels(v,story.beat,story.tBeat);
-    }else if(mode==='settlement'){ // settlement mode: the same arcs, plus clickable places
-      drawArcs(v,settle.beat,settle.tBeat);
+    }else if(mode==='settlement'){ // settlement mode: the year timeline, plus clickable places
+      drawTimeline(v);
       ctx.restore();
       drawPlaces(v);
     }else{
@@ -779,8 +813,19 @@ function buildChooserUI(){
 // ---------- controls ----------
 const playBtn=document.getElementById('play'),scrub=document.getElementById('scrub'),speedEl=document.getElementById('speed');
 function setPlaying(p){playing=p;playBtn.textContent=p?'❚❚':'▶';}
-playBtn.addEventListener('click',()=>{if(!playing&&t>=1)t=0;setPlaying(!playing);});
-scrub.addEventListener('input',()=>{t=+scrub.value;setPlaying(false);});
+playBtn.addEventListener('click',()=>{
+  if(mode==='settlement'){
+    if(!settle.playing&&settle.year>=TL.max)setYear(TL.min);
+    settle.until=TL.max;
+    setTlPlaying(!settle.playing);
+    return;
+  }
+  if(!playing&&t>=1)t=0;setPlaying(!playing);
+});
+scrub.addEventListener('input',()=>{
+  if(mode==='settlement'){setYear(TL.min+ +scrub.value*(TL.max-TL.min));setTlPlaying(false);return;}
+  t=+scrub.value;setPlaying(false);
+});
 speedEl.addEventListener('input',()=>{speedMul=+speedEl.value;});
 
 const frameHint=document.querySelector('.frames .hint');
@@ -807,7 +852,7 @@ function frameActive(btn){document.querySelectorAll('.frames button').forEach(b=
 const mPuzzle=document.getElementById('mPuzzle'),mSandbox=document.getElementById('mSandbox');
 const mSettle=document.getElementById('mSettle');
 const newBtn=document.getElementById('newBtn'),subEl=document.getElementById('sub');
-const framesEl=document.querySelector('.frames'),barEl=document.querySelector('.bar');
+const framesEl=document.querySelector('.frames');
 function setMode(m){
   mode=m;
   mPuzzle.classList.toggle('active',m==='puzzle');
@@ -818,13 +863,14 @@ function setMode(m){
   eraList.classList.toggle('hidden',m!=='settlement');
   settleCard.classList.toggle('hidden',m!=='settlement');
   framesEl.classList.toggle('hidden',m==='settlement');
-  barEl.classList.toggle('hidden',m==='settlement');
   readoutEl.classList.toggle('hidden',m==='settlement');
   document.getElementById('storyBtn').classList.toggle('hidden',m==='settlement');   // the tab IS the story
+  yearLabel.classList.toggle('hidden',m!=='settlement');    // the bar stays: it becomes the time slider
+  etakStrip.classList.toggle('hidden',m==='settlement');
   if(m==='settlement'){
     setPlaying(false);fTarget=0;bTarget=0;departWrap.classList.add('hidden');
     frameActive(document.getElementById('fChart'));
-    subEl.textContent='How the Pacific was settled. Pick an era; click a landfall for its story. Scroll to zoom, drag the sea to pan.';
+    subEl.textContent='How the Pacific was settled. Press play or drag the years; click a landfall for its story.';
     setEra(0);                       // always open on the whole ocean
   }
   else if(m==='puzzle'){makePuzzle();}
@@ -840,6 +886,7 @@ const eraList=document.getElementById('eraList');
 const settleCard=document.getElementById('settleCard');
 const settleEra=document.getElementById('settleEra'),settleTitle=document.getElementById('settleTitle');
 const settleText=document.getElementById('settleText');
+const yearLabel=document.getElementById('yearLabel');
 function showEraCard(){
   settlePlace=null;
   const bt=ETAK_STORY[settle.beat];
@@ -849,10 +896,20 @@ function showPlaceCard(p){
   settlePlace=p;
   settleEra.textContent=p.date;settleTitle.textContent=p.name;settleText.textContent=p.blurb;
 }
+function setYear(y){
+  settle.year=y;
+  scrub.value=(y-TL.min)/(TL.max-TL.min);
+  yearLabel.textContent=yearText(y);
+}
+function setTlPlaying(p){settle.playing=p;playBtn.textContent=p?'❚❚':'▶';}
+// an era click flies the camera, shows the card, and plays that era's years
 function setEra(i){
-  settle.beat=i;settle.tBeat=0;settle.places=eraPlaces(i);
+  settle.beat=i;
   [...eraList.querySelectorAll('button')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
   camTarget=fitPoints(ETAK_STORY[i].fit.map(project),CFG.storyFitFrac);
+  const er=TL.eras[i];
+  if(er.start<er.end&&!reduceMotion){setYear(er.start);settle.until=er.end;setTlPlaying(true);}
+  else{setYear(er.end);setTlPlaying(false);}
   showEraCard();
 }
 ETAK_STORY.forEach((bt,i)=>{
@@ -937,14 +994,15 @@ canvas.addEventListener('pointermove',e=>{
   }
 });
 canvas.addEventListener('pointerup',e=>{
-  // settlement: a still click (not a pan) hits a place → its card; empty sea → era card
+  // settlement: a still click (not a pan) hits a reached place → its card; empty sea → era card
   if(mode==='settlement'&&dragMode==='pan'&&Math.hypot(e.clientX-downX,e.clientY-downY)<4){
     const v=viewParams();
-    const hit=settle.places.find(pe=>{
-      const s=worldToScreen(project(pe.p),v);
+    const hit=Object.values(ETAK_PLACES).find(p=>{
+      if(p.year>settle.year)return false;
+      const s=worldToScreen(project(p),v);
       return Math.hypot(s.x-e.clientX,s.y-e.clientY)<CFG.placeHitR;
     });
-    hit?showPlaceCard(hit.p):showEraCard();
+    hit?showPlaceCard(hit):showEraCard();
   }
   dragMode=null;
 });
@@ -967,7 +1025,11 @@ function loop(now){
   f+=(fTarget-f)*Math.min(1,dt*fSpeed);if(Math.abs(fTarget-f)<0.001)f=fTarget;
   b+=(bTarget-b)*Math.min(1,dt*fSpeed);if(Math.abs(bTarget-b)<0.001)b=bTarget;
   if(story)story.tBeat+=dt;
-  else if(mode==='settlement')settle.tBeat+=dt;
+  else if(mode==='settlement'&&settle.playing){   // timeline playback
+    const y=Math.min(settle.until,settle.year+dt*CFG.yearRate*speedMul);
+    setYear(y);
+    if(y>=settle.until)setTlPlaying(false);
+  }
   if(camTarget){                       // story camera flight (zoom eased in log space)
     const k=Math.min(1,dt*(reduceMotion?CFG.fEaseReduced:CFG.storyEase));
     cam.cx+=(camTarget.cx-cam.cx)*k;cam.cy+=(camTarget.cy-cam.cy)*k;
