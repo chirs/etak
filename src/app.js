@@ -390,7 +390,7 @@ function arcProgress(bi,ai,beat,tBeat){
 function drawArcs(v,beat,tBeat){
   for(let bi=0;bi<=beat;bi++){
     const on=bi===beat;
-    ctx.strokeStyle=hexA(PAL.amber,on?0.75:0.28);       // past beats stay as amber shadows
+    ctx.strokeStyle=hexA(PAL.amber,on?0.75:0.42);       // past beats stay as amber shadows
     ctx.lineWidth=(on?1.6:1)/v.Z;
     ETAK_STORY[bi].arcs.forEach((arc,ai)=>{
       const p=arcProgress(bi,ai,beat,tBeat);
@@ -403,7 +403,7 @@ function drawArcs(v,beat,tBeat){
       }
       ctx.stroke();
       const hw=project(gcInterp(arc.from,arc.to,p));    // head while growing, landfall once there
-      ctx.fillStyle=on?PAL.amber:hexA(PAL.amber,0.5);
+      ctx.fillStyle=on?PAL.amber:hexA(PAL.amber,0.65);
       ctx.beginPath();ctx.arc(hw.x,hw.y,(p<1?3:2.2)/v.Z,0,7);ctx.fill();
     });
   }
@@ -462,7 +462,7 @@ function drawTimeline(v){
     const p=e.coda?1:clamp((settle.year-e.start)/(e.end-e.start||1),0,1);
     if(p<=0)continue;
     const on=e.coda||p<1;
-    ctx.strokeStyle=hexA(PAL.amber,on?0.75:0.28);       // completed voyages stay as amber shadows
+    ctx.strokeStyle=hexA(PAL.amber,on?0.75:0.42);       // completed voyages stay as amber shadows
     ctx.lineWidth=(on?1.6:1)/v.Z;
     ctx.beginPath();
     for(let i=0;i<=N;i++){
@@ -471,7 +471,7 @@ function drawTimeline(v){
     }
     ctx.stroke();
     const hw=project(gcInterp(e.arc.from,e.arc.to,p));  // head while growing, landfall once there
-    ctx.fillStyle=on?PAL.amber:hexA(PAL.amber,0.5);
+    ctx.fillStyle=on?PAL.amber:hexA(PAL.amber,0.65);
     ctx.beginPath();ctx.arc(hw.x,hw.y,(p<1?3:2.2)/v.Z,0,7);ctx.fill();
   }
 }
