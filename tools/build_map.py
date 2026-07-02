@@ -34,8 +34,8 @@ URL = ("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
 # to close the basin north; down to sub-Antarctic latitudes south.
 LON_MIN, LON_MAX = 110.0, 292.0      # 110°E eastward across the dateline to 68°W
 LAT_MIN, LAT_MAX = -75.0, 66.0
-SIMPLIFY_TOL = 0.08                  # degrees; Douglas-Peucker tolerance
-MIN_RING_AREA = 0.05                 # deg^2; drop rings smaller than this
+SIMPLIFY_TOL = 0.03                  # degrees (~3.3 km); Douglas-Peucker tolerance
+MIN_RING_AREA = 0.01                 # deg^2 (~120 km²); drop rings smaller than this
 
 # Fine-detail region: the Caroline–Mariana seaways the app actually sails.
 # Rings whose centroid falls in this box keep near-full 10m detail so the
@@ -256,8 +256,12 @@ def main():
                     tol, min_area = MID_TOL, MID_MIN_RING_AREA
                 else:
                     tol, min_area = SIMPLIFY_TOL, MIN_RING_AREA
+                # filter on the ring's true area, then simplify for display —
+                # DP corner-cutting must not push borderline islands under the floor
+                if ring_area(clipped) < min_area:
+                    continue
                 simp = simplify(clipped, tol)
-                if len(simp) < 3 or ring_area(simp) < min_area:
+                if len(simp) < 3:
                     continue
                 polys.append([[round(x, 3), round(y, 3)] for x, y in simp])
                 break  # outer ring only — holes are invisible on a dark chart
