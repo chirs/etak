@@ -35,7 +35,7 @@ Findings collected in [`docs/sources.md`](docs/sources.md) (fact-checked, confid
 
 ## Make the puzzle a real puzzle
 
-- [ ] Hide candidate scores until a choice is made — right now the chooser shows every score up
+- [x] Hide candidate scores until a choice is made — right now the chooser shows every score up
       front, so there is nothing to guess. Pick first, then reveal all four scores + the verdict.
 
 

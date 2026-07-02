@@ -86,8 +86,8 @@ let passageIndex=0;
 const canoeAt=tt=>gcInterp(A,B,tt);
 
 function recompute(){
-  live=scoreFor(A,B,C);
-  boundaries=live.boundaries;
+  live=C?scoreFor(A,B,C):null;
+  boundaries=live?live.boundaries:[];
   legNm=gcDistNm(A,B);
   updateScorePanel();
 }
@@ -102,18 +102,24 @@ function makePuzzle(){
     const isl=ETAK_ISLANDS[id];
     return {id,name:isl.name,lat:isl.lat,lon:isl.lon,score:scoreFor(A,B,isl)};
   });
-  puzzle={candidates,chosenIndex:0};
+  puzzle={candidates,chosenIndex:-1};   // -1 = nothing picked yet, scores hidden
+  C=null;
+  recompute();
   subEl.textContent=`${pas.name} — ${pas.note}`;
   buildChooserUI();
   fitLeg();
-  applyChoice(0);
+  scorePanel.classList.add('hidden');
+  t=0;scrub.value=0;setPlaying(false);
 }
 
 function applyChoice(i){
+  const firstPick=puzzle.chosenIndex<0;
   puzzle.chosenIndex=i;
   const cand=puzzle.candidates[i];
   C={lat:cand.lat,lon:cand.lon,name:cand.name};
   recompute();
+  if(firstPick)buildChooserUI();        // rebuild with all four scores revealed
+  scorePanel.classList.remove('hidden');
   [...chooserEl.querySelectorAll('button')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
   t=0;scrub.value=0;setPlaying(false);
 }
@@ -227,7 +233,7 @@ function drawCourse(v,Aw,Bw){
 // island drift trails (navigator frame) + canoe wake (chart frame)
 function drawTrails(v,Pw,Aw){
   if(v.fe>0.03){
-    for(const I of [A,B,C]){const Iw=project(I);const col=I===C?PAL.amber:PAL.teal;
+    for(const I of (C?[A,B,C]:[A,B])){const Iw=project(I);const col=I===C?PAL.amber:PAL.teal;
       for(let k=1;k<=CFG.trailN;k++){const tp=t-k*CFG.trailStep;if(tp<0)break;const Ppw=project(canoeAt(tp));
         ctx.globalAlpha=v.fe*(1-k/(CFG.trailN+1))*0.5;ctx.fillStyle=col;
         ctx.beginPath();ctx.arc(Iw.x+(Pw.x-Ppw.x),Iw.y+(Pw.y-Ppw.y),2/v.Z,0,7);ctx.fill();}}
@@ -246,6 +252,7 @@ function drawBearings(v,Pw){
       ctx.beginPath();ctx.moveTo(Pw.x,Pw.y);ctx.lineTo(cw.x,cw.y);ctx.stroke();ctx.setLineDash([]);
     });
   }
+  if(!C)return;
   const Cw=project(C);
   ctx.strokeStyle=PAL.amber;ctx.lineWidth=1.6/v.Z;ctx.setLineDash([2/v.Z,5/v.Z]);
   ctx.beginPath();ctx.moveTo(Pw.x,Pw.y);ctx.lineTo(Cw.x,Cw.y);ctx.stroke();ctx.setLineDash([]);
@@ -267,10 +274,11 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw){
       drawMarker(s,PAL.ghost,null,4.5);drawLabel(s,cd.name,false,true);
     });
   }
-  const sA=worldToScreen(Aw,v),sB=worldToScreen(Bw,v),sC=worldToScreen(project(C),v);
+  const sA=worldToScreen(Aw,v),sB=worldToScreen(Bw,v);
   drawMarker(sA,PAL.island,null,5);drawLabel(sA,A.name,true,false);
   drawMarker(sB,PAL.island,null,5);drawLabel(sB,B.name,true,false);
-  drawMarker(sC,PAL.refFill,hexA(PAL.amber,0.5),5.5);drawLabel(sC,C.name,false,false);
+  if(C){const sC=worldToScreen(project(C),v);
+    drawMarker(sC,PAL.refFill,hexA(PAL.amber,0.5),5.5);drawLabel(sC,C.name,false,false);}
   drawRoseLabels(Pw,v);
 }
 
@@ -279,7 +287,7 @@ function draw(){
   drawSky();
 
   const cn=canoeAt(t);
-  const refDeg=gcBearing(cn,C);
+  const refDeg=C?gcBearing(cn,C):null;
   const v=viewParams(cn);
   const Pw=v.P;
   const Aw=project(A),Bw=project(B);
@@ -289,7 +297,7 @@ function draw(){
   drawCoast(v);
   drawCourse(v,Aw,Bw);
   drawTrails(v,Pw,Aw);
-  drawRose(Pw,v,houseOf(refDeg));
+  drawRose(Pw,v,refDeg==null?-1:houseOf(refDeg));
   drawBearings(v,Pw);
   drawCanoe(v,Pw,Aw,Bw);
   ctx.restore();
@@ -303,6 +311,12 @@ function draw(){
 const readoutEl=document.getElementById('readout');
 let lastReadout='';
 function updateReadout(refDeg){
+  if(refDeg==null){
+    const html=`<b>choose a reference island</b> — watch the ghost bearings sweep<br>`+
+      `leg <b>${Math.round(legNm)} nm</b> · voyage <b>${Math.round(t*100)}%</b>`;
+    if(html!==lastReadout){lastReadout=html;readoutEl.innerHTML=html;}
+    return;
+  }
   const seg=boundaries.filter(b=>b<t).length+1;
   const total=boundaries.length+1;
   const segName=total>1&&seg===total?' — etak of sighting':
@@ -332,9 +346,10 @@ function updateScorePanel(){
 const chooserEl=document.getElementById('chooser');
 function buildChooserUI(){
   chooserEl.querySelectorAll('button').forEach(b=>b.remove());
+  const revealed=puzzle.chosenIndex>=0;
   puzzle.candidates.forEach((cd,i)=>{
     const btn=document.createElement('button');
-    btn.innerHTML=`<span>${cd.name.trim()}</span><span class="sc">${cd.score.total}</span>`;
+    btn.innerHTML=`<span>${cd.name.trim()}</span>`+(revealed?`<span class="sc">${cd.score.total}</span>`:'');
     btn.addEventListener('click',()=>applyChoice(i));
     chooserEl.appendChild(btn);
   });
