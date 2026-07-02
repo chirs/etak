@@ -197,31 +197,24 @@ function drawRoseLabels(Pw,v){
     const s=worldToScreen(w,v);ctx.fillText(nm,s.x,s.y+3);}
 }
 
-function draw(){
-  ctx.setTransform(DPR,0,0,DPR,0,0);
+// ---------- layers (world-space ones draw under applyTransform(v)) ----------
+function drawSky(){
   const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,PAL.night);g.addColorStop(1,PAL.night2);
   ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-
   const now=performance.now()/1000;
   for(const s of stars){const tw=reduceMotion?0.75:0.55+0.45*Math.sin(now*s.s+s.p);
     ctx.globalAlpha=0.35*tw;ctx.fillStyle=PAL.starlight;
     ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,7);ctx.fill();}
   ctx.globalAlpha=1;
+}
 
-  const cn=canoeAt(t);
-  const refDeg=gcBearing(cn,C);
-  const v=viewParams(cn);
-  const Pw=v.P;
-
-  // ---- world-space pass ----
-  ctx.save();applyTransform(v);
-
-  // coastlines
+function drawCoast(v){
   ctx.fillStyle=PAL.land;ctx.fill(landPath);
   ctx.strokeStyle=PAL.coast;ctx.lineWidth=0.6/v.Z;ctx.lineJoin='round';ctx.stroke(landPath);
+}
 
-  // course + etak ticks (perpendicular to the leg)
-  const Aw=project(A),Bw=project(B);
+// course line + etak ticks (perpendicular to the leg)
+function drawCourse(v,Aw,Bw){
   ctx.strokeStyle=PAL.course+'aa';ctx.lineWidth=1.5/v.Z;ctx.setLineDash([6/v.Z,7/v.Z]);
   ctx.beginPath();ctx.moveTo(Aw.x,Aw.y);ctx.lineTo(Bw.x,Bw.y);ctx.stroke();ctx.setLineDash([]);
   let px=Bw.x-Aw.x,py=Bw.y-Aw.y;const pl=Math.hypot(px,py)||1;px/=pl;py/=pl;   // unit along leg
@@ -229,8 +222,10 @@ function draw(){
   for(const bt of boundaries){const q=project(canoeAt(bt));
     ctx.strokeStyle=bt<t?PAL.amber+'99':PAL.tick;ctx.lineWidth=1.5/v.Z;
     ctx.beginPath();ctx.moveTo(q.x-nx*tickL,q.y-ny*tickL);ctx.lineTo(q.x+nx*tickL,q.y+ny*tickL);ctx.stroke();}
+}
 
-  // drift trails (navigator) / wake (chart)
+// island drift trails (navigator frame) + canoe wake (chart frame)
+function drawTrails(v,Pw,Aw){
   if(v.fe>0.03){
     for(const I of [A,B,C]){const Iw=project(I);const col=I===C?PAL.amber:PAL.teal;
       for(let k=1;k<=CFG.trailN;k++){const tp=t-k*CFG.trailStep;if(tp<0)break;const Ppw=project(canoeAt(tp));
@@ -240,10 +235,10 @@ function draw(){
   }
   if(v.fe<0.97&&t>0.005){ctx.save();ctx.globalAlpha=0.6*(1-v.fe);ctx.strokeStyle=PAL.teal;ctx.lineWidth=2/v.Z;
     ctx.beginPath();ctx.moveTo(Aw.x,Aw.y);ctx.lineTo(Pw.x,Pw.y);ctx.stroke();ctx.restore();}
+}
 
-  drawRose(Pw,v,houseOf(refDeg));
-
-  // bearing lines: ghosts (dim) + chosen
+// bearing lines: ghost candidates (dim) + chosen reference
+function drawBearings(v,Pw){
   if(mode==='puzzle'&&puzzle){
     puzzle.candidates.forEach((cd,i)=>{
       if(i===puzzle.chosenIndex)return;const cw=project(cd);
@@ -254,28 +249,53 @@ function draw(){
   const Cw=project(C);
   ctx.strokeStyle=PAL.amber;ctx.lineWidth=1.6/v.Z;ctx.setLineDash([2/v.Z,5/v.Z]);
   ctx.beginPath();ctx.moveTo(Pw.x,Pw.y);ctx.lineTo(Cw.x,Cw.y);ctx.stroke();ctx.setLineDash([]);
+}
 
-  // canoe (points along +x world = the leg's forward-ish direction)
-  ctx.save();ctx.translate(Pw.x,Pw.y);ctx.rotate(Math.atan2(py,px));
+// canoe (points along +x world = the leg's forward-ish direction)
+function drawCanoe(v,Pw,Aw,Bw){
+  ctx.save();ctx.translate(Pw.x,Pw.y);ctx.rotate(Math.atan2(Bw.y-Aw.y,Bw.x-Aw.x));
   ctx.scale(1/v.Z,1/v.Z);ctx.fillStyle=PAL.starlight;
   ctx.beginPath();ctx.moveTo(14,0);ctx.lineTo(-10,-7);ctx.lineTo(-6,0);ctx.lineTo(-10,7);ctx.closePath();ctx.fill();
   ctx.restore();
+}
 
-  ctx.restore();
-
-  // ---- screen-space pass: markers + labels (crisp, upright) ----
+// screen-space pass: markers + labels (crisp, upright at any zoom)
+function drawMarkersAndLabels(v,Pw,Aw,Bw){
   if(mode==='puzzle'&&puzzle){
     puzzle.candidates.forEach((cd,i)=>{
       if(i===puzzle.chosenIndex)return;const s=worldToScreen(project(cd),v);
       drawMarker(s,PAL.ghost,null,4.5);drawLabel(s,cd.name,false,true);
     });
   }
-  const sA=worldToScreen(Aw,v),sB=worldToScreen(Bw,v),sC=worldToScreen(Cw,v);
+  const sA=worldToScreen(Aw,v),sB=worldToScreen(Bw,v),sC=worldToScreen(project(C),v);
   drawMarker(sA,PAL.island,null,5);drawLabel(sA,A.name,true,false);
   drawMarker(sB,PAL.island,null,5);drawLabel(sB,B.name,true,false);
   drawMarker(sC,PAL.refFill,hexA(PAL.amber,0.5),5.5);drawLabel(sC,C.name,false,false);
   drawRoseLabels(Pw,v);
+}
 
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawSky();
+
+  const cn=canoeAt(t);
+  const refDeg=gcBearing(cn,C);
+  const v=viewParams(cn);
+  const Pw=v.P;
+  const Aw=project(A),Bw=project(B);
+
+  // ---- world-space pass ----
+  ctx.save();applyTransform(v);
+  drawCoast(v);
+  drawCourse(v,Aw,Bw);
+  drawTrails(v,Pw,Aw);
+  drawRose(Pw,v,houseOf(refDeg));
+  drawBearings(v,Pw);
+  drawCanoe(v,Pw,Aw,Bw);
+  ctx.restore();
+
+  // ---- screen-space pass ----
+  drawMarkersAndLabels(v,Pw,Aw,Bw);
   updateReadout(refDeg);
 }
 
