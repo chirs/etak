@@ -387,16 +387,21 @@ function drawBoatView(cn,refDeg,cur){
   ctx.strokeStyle=hexA(PAL.teal,0.85);ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(0,hy);ctx.lineTo(W,hy);ctx.stroke();
 
-  // the actual sky: field stars + named compass stars, turning with sailing time
+  // the actual sky: field stars + named compass stars, turning with sailing time.
+  // Atmospheric extinction: airmass (≈1/sin alt, capped at the true horizon value
+  // ~38) dims stars toward the sea line by 10^(-0.4·k·(X−1)), k=0.25 mag/airmass.
   const lst=(gmst(voyageMs()/86400000+2440587.5)+cn.lon)%360;
+  const dimAt=alt=>Math.pow(10,-0.1*(1/Math.sin(Math.max(alt,1.5)*Math.PI/180)-1));
   const curBase=cur>=0?ETAK_COMPASS[cur].star
     .replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,''):null;
   for(const [ra,dec,mag] of STAR_MAP.field){
     const p=altAz(ra,dec,cn.lat,lst);
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
     const y=hy-p.alt*pxDeg;if(y<14)continue;
-    ctx.fillStyle=hexA(PAL.starlight,Math.max(0.2,0.85-0.1*mag));
-    ctx.beginPath();ctx.arc(azX(p.az),y,Math.max(0.55,2.7-0.33*mag),0,7);ctx.fill();
+    const dim=dimAt(p.alt), a=Math.max(0.2,0.85-0.1*mag)*dim;
+    if(a<0.03)continue;
+    ctx.fillStyle=hexA(PAL.starlight,a);
+    ctx.beginPath();ctx.arc(azX(p.az),y,Math.max(0.55,2.7-0.33*mag)*(0.5+0.5*dim),0,7);ctx.fill();
   }
   ctx.font='9px "IBM Plex Mono",monospace';ctx.textAlign='left';
   for(const s of STAR_MAP.compass){
@@ -404,7 +409,7 @@ function drawBoatView(cn,refDeg,cur){
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
     const y=hy-p.alt*pxDeg;if(y<14)continue;
     const x=azX(p.az), hot=s.group===curBase;
-    drawMarker({x,y},hot?PAL.amber:hexA(PAL.starlight,0.9),
+    drawMarker({x,y},hot?PAL.amber:hexA(PAL.starlight,Math.max(0.25,0.9*dimAt(p.alt))),
                hot?hexA(PAL.amber,0.4):null,hot?2.6:Math.max(1.4,2.6-0.5*s.mag));
     if(s.lbl){ctx.fillStyle=hot?PAL.amber:hexA(PAL.dim,0.6);ctx.fillText(s.car||s.name,x+7,y+3);}
   }
