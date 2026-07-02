@@ -140,11 +140,11 @@ const stars=Array.from({length:130},()=>({x:srnd(),y:srnd(),r:srnd()*1.1+0.3,p:s
 
 // ---------- view transform (single source; screenToWorld/worldToScreen invert it) ----------
 const ease=k=>k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
-function viewParams(){
+function viewParams(cn=canoeAt(t)){
   const fe=ease(f);const rot=fe*(-Math.PI/2);
-  const P=project(canoeAt(t));
+  const P=project(cn);
   const O={x:lerp(cam.cx,P.x,fe), y:lerp(cam.cy,P.y,fe)};
-  return {fe,rot,O,Z:cam.zoom,cx:W/2,cy:H/2+(1-fe)*20};
+  return {fe,rot,O,Z:cam.zoom,cx:W/2,cy:H/2+(1-fe)*20,P};
 }
 function applyTransform(v){
   ctx.translate(v.cx,v.cy);ctx.rotate(v.rot);ctx.scale(v.Z,v.Z);ctx.translate(-v.O.x,-v.O.y);
@@ -174,12 +174,11 @@ function drawLabel(scr,name,below,dim){
   ctx.fillText(name,scr.x,scr.y+(below?18:-12));
 }
 
-function drawRose(Pw,v){
+function drawRose(Pw,v,cur){
   const R=CFG.roseR/v.Z;                    // screen px in world units
   ctx.save();ctx.translate(Pw.x,Pw.y);ctx.globalAlpha=0.12+0.88*v.fe;
   ctx.strokeStyle=PAL.roseRing;ctx.lineWidth=1/v.Z;
   ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.stroke();
-  const cur=houseOf(gcBearing(canoeAt(t),C));
   for(let i=0;i<32;i++){const deg=i*HOUSE;const a=(deg-90)*Math.PI/180;
     const major=i%8===0;const lp=(major?16:(i%4===0?10:6))/v.Z;
     ctx.strokeStyle=i===cur?PAL.amber:PAL.roseMinor;ctx.lineWidth=(i===cur?2.2:1)/v.Z;
@@ -207,8 +206,10 @@ function draw(){
     ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,7);ctx.fill();}
   ctx.globalAlpha=1;
 
-  const v=viewParams();
-  const Pw=project(canoeAt(t));
+  const cn=canoeAt(t);
+  const refDeg=gcBearing(cn,C);
+  const v=viewParams(cn);
+  const Pw=v.P;
 
   // ---- world-space pass ----
   ctx.save();applyTransform(v);
@@ -238,7 +239,7 @@ function draw(){
   if(v.fe<0.97&&t>0.005){ctx.save();ctx.globalAlpha=0.6*(1-v.fe);ctx.strokeStyle=PAL.teal;ctx.lineWidth=2/v.Z;
     ctx.beginPath();ctx.moveTo(Aw.x,Aw.y);ctx.lineTo(Pw.x,Pw.y);ctx.stroke();ctx.restore();}
 
-  drawRose(Pw,v);
+  drawRose(Pw,v,houseOf(refDeg));
 
   // bearing lines: ghosts (dim) + chosen
   if(mode==='puzzle'&&puzzle){
@@ -273,7 +274,7 @@ function draw(){
   drawMarker(sC,PAL.refFill,hexA(PAL.amber,0.5),5.5);drawLabel(sC,C.name,false,false);
   drawRoseLabels(Pw,v);
 
-  updateReadout(gcBearing(canoeAt(t),C));
+  updateReadout(refDeg);
 }
 
 // ---------- UI ----------
