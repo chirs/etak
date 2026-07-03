@@ -98,9 +98,24 @@ heading; `azX(az)` maps an azimuth to screen x). What the sitter on the lee plat
   or gate it. This is the open design question for the reshape.
 - **Eye-point** — low, ~1–1.5 m above the water, on the lee platform amidships.
 
-Open decisions the reshape must make (were surfaced to the user, not yet answered): how much of the
-boat to draw (prow only / prow + outrigger / full rig), and whether/how to show the sail without
-burying the sky.
+**Decisions (resolved with the user, Jul 2026):**
+
+- **Scope: the full rig** — prow + outrigger + crab-claw sail.
+- **The sail is semi-transparent.** Low-alpha cloth so the real sky reads through the matting;
+  keep the two **spars** (and the free leech edge) more opaque than the cloth, so the crab-claw
+  *shape* stays legible as a silhouette against the stars.
+- **The outrigger side is windward — a function of wind, not heading.** Drive it from a wind
+  bearing even before there is a wind *model*: hardcode the prevailing **NE trades (~060°)** for
+  now (also the authentic sailing-season wind for these passages), so the side is correct and the
+  code is wind-ready. On a **shunt** the outrigger side and the sail set both flip to the far end.
+
+**Wind is coming** (see ROADMAP → "steer by the stars"). Two levels, keep them separate: the
+*cosmetic* layer above (outrigger side, sail trim, shunt-flip) is cheap and makes the boat view
+coherent; a *simulation* layer — leeway drift that bends the leg off the great circle, limited
+pointing, shunting to make ground upwind — is a core change that cascades into etak boundaries and
+scoring. Worth noting it quietly contradicts the app's current straight-leg premise: etak is
+exactly the craft of holding course under a cross-wind with leeway, and the straight great-circle
+leg is the teaching simplification.
 
 
 ## 6. Reference imagery

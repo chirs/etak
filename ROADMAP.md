@@ -14,8 +14,11 @@
 - [ ] **Authentic canoe** — reshape the boat-view hull silhouette to match the real Carolinian
       proa (single outrigger, crab-claw sail, double-ended shunting hull) instead of the generic
       yacht bow. Form reference written up in `docs/canoe.md` (hull, outrigger, rig, plus a
-      silhouette cheat-sheet for `drawBoatView`); still to do: drop real construction plates/photos
-      into `docs/refs/` (Haddon & Hornell, Gladwin — see §6) and do the reshape.
+      silhouette cheat-sheet for `drawBoatView`) and a starter set of PD/CC reference images in
+      `docs/refs/canoe-images/`. Decided: full rig, **semi-transparent sail** (crisp spars, sheer
+      cloth), outrigger on the **windward** side driven by a wind constant (~060° NE trades) so
+      it's wind-ready. Still to do: measured construction plates (Haddon & Hornell — see §6) and
+      the reshape itself.
 - [x] Make ocean prettier - mesh, pseudo-waves
 - [ ] Voyage picker!
 
