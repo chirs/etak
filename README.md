@@ -49,4 +49,5 @@ node --test 'tests/**/*.test.mjs'
 ```
 
 Sources for the passages, island coordinates, and star-compass points are documented in
-[`docs/sources.md`](docs/sources.md).
+[`docs/sources.md`](docs/sources.md); the form of the canoe itself (for the boat view) is in
+[`docs/canoe.md`](docs/canoe.md), with reference imagery in `docs/refs/canoe-images/`.
