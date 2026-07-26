@@ -31,11 +31,11 @@ The visualization renders the same voyage in **three reference frames**:
 
 ## Running
 
-Zero dependencies, no build step. Open `src/index.html` in a browser, or serve the directory
+Zero dependencies, no build step. Open `www/index.html` in a browser, or serve the directory
 statically:
 
 ```sh
-python3 -m http.server --directory src
+python3 -m http.server --directory www
 ```
 
 (Typography loads from Google Fonts, so a network connection gives the intended look.)

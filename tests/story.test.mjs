@@ -7,8 +7,8 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { ETAK_STORY, ETAK_PLACES } = require(path.join(here, '..', 'src', 'passages.js'));
-const { bounds } = require(path.join(here, '..', 'src', 'map-data.js'));
+const { ETAK_STORY, ETAK_PLACES } = require(path.join(here, '..', 'www', 'passages.js'));
+const { bounds } = require(path.join(here, '..', 'www', 'map-data.js'));
 
 const lon360 = lon => ((lon % 360) + 360) % 360;
 const onChart = p =>

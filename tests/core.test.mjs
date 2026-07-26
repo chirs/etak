@@ -7,7 +7,7 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const EtakCore = require(path.join(here, '..', 'src', 'core.js'));
+const EtakCore = require(path.join(here, '..', 'www', 'core.js'));
 
 // Real coordinates from docs/sources.md §3
 const Puluwat = { lat: 7.3543, lon: 149.2002 };

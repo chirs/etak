@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Etak is a zero-dependency interactive canvas visualization of Micronesian star-path ("etak")
 navigation, rendered over a real, zoomable chart of the Pacific. There is no build step or
-package manager at runtime. The app is these files in `src/`:
+package manager at runtime. The app is these files in `www/`:
 
 - `index.html` — markup only; links the stylesheet and the scripts, in load order.
 - `styles.css` — all CSS, including the `:root` color tokens (the single source of truth for the palette).
@@ -26,13 +26,13 @@ West Fayu, Elato, Pikelot, Gaferut), and `tools/build_stars.py` regenerates `sta
 Yale Bright Star Catalog — both stdlib-only, source data checked in next to them. Tests:
 `node --test 'tests/**/*.test.mjs'`.
 
-Scripts are plain classic `<script>` tags (not ES modules) so `src/index.html` still works opened
+Scripts are plain classic `<script>` tags (not ES modules) so `www/index.html` still works opened
 directly over `file://`. Load order matters: `core.js` → `map-data.js` → `stars.js` →
 `passages.js` → `app.js` (`app.js` consumes all four globals). The data/content scripts also
 expose a `module.exports` bridge so Node tests can `require` them; this is inert in the browser.
 
-To run it: open `src/index.html` in a browser, or serve the directory (`python3 -m http.server
---directory src`). Fonts load from Google Fonts, so a network connection is needed for the intended typography.
+To run it: open `www/index.html` in a browser, or serve the directory (`python3 -m http.server
+--directory www`). Fonts load from Google Fonts, so a network connection is needed for the intended typography.
 
 ## Domain concepts (needed to make sense of the code)
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""One-time generator for src/stars.js — the boat-view star catalog.
+"""One-time generator for www/stars.js — the boat-view star catalog.
 
 Reads the Yale Bright Star Catalog (bsc5-short.json, checked in next to this
 script; re-downloaded if missing), keeps every star to V <= MAG_LIMIT as anonymous
 "field" points, and emits the Carolinian compass type-stars as named entries
 whose `group` strings match the base star names used in ETAK_COMPASS
-(src/passages.js), so the app can map star-house -> physical star(s).
+(www/passages.js), so the app can map star-house -> physical star(s).
 
 Coordinates are J2000; the ~0.4 deg of precession since the 1970s voyages is
 far below display resolution. Pure stdlib.
@@ -21,7 +21,7 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "bsc5-short.json")   # checked-in source data
-OUT = os.path.join(HERE, "..", "src", "stars.js")
+OUT = os.path.join(HERE, "..", "www", "stars.js")
 URL = ("https://raw.githubusercontent.com/brettonw/YaleBrightStarCatalog/"
        "master/bsc5-short.json")
 

@@ -1,7 +1,7 @@
 # Carolinian sailing canoe — form reference
 
 What the real boat looks like, gathered to drive the **"Authentic canoe"** roadmap item: the
-boat-view hull silhouette (`drawBoatView` in `src/app.js`) is currently a generic yacht bow, and
+boat-view hull silhouette (`drawBoatView` in `www/app.js`) is currently a generic yacht bow, and
 this is the reference for reshaping it. Same house style as `sources.md` — each claim tagged:
 
 - **[verified]** — stated in a primary/academic source (see Sources) and cross-checked.

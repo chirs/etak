@@ -7,7 +7,7 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { ETAK_COMPASS } = require(path.join(here, '..', 'src', 'passages.js'));
+const { ETAK_COMPASS } = require(path.join(here, '..', 'www', 'passages.js'));
 
 test('compass has exactly 32 houses', () => {
   assert.equal(ETAK_COMPASS.length, 32);

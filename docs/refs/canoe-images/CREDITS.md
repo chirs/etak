@@ -1,7 +1,7 @@
 # Canoe reference images — credits & licenses
 
 Free-licensed Pacific outrigger / proa imagery gathered for the **Authentic canoe**
-roadmap item (reshaping the boat-view hull in `src/app.js` to a real Carolinian proa).
+roadmap item (reshaping the boat-view hull in `www/app.js` to a real Carolinian proa).
 See `../../canoe.md` for the written form reference. All files here are **public domain**
 or **Creative Commons**; CC-BY/BY-SA require attribution, given below. Source is Wikimedia
 Commons — click the page link for full license terms.

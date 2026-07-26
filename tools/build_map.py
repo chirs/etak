@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-time generator for src/map-data.js — Pacific-centered coastlines.
+"""One-time generator for www/map-data.js — Pacific-centered coastlines.
 
 Downloads Natural Earth 10m land polygons, normalizes longitudes into a
 continuous Pacific-centered space (lon360 = (lon + 360) % 360), clips to the
@@ -24,7 +24,7 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "ne_10m_land.geojson")  # checked-in source data (skips the download)
-OUT = os.path.join(HERE, "..", "src", "map-data.js")
+OUT = os.path.join(HERE, "..", "www", "map-data.js")
 
 # Natural Earth 10m land, via the nvkelso/natural-earth-vector GitHub mirror.
 URL = ("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
@@ -47,7 +47,7 @@ FINE_TOL = 0.002                     # ~220 m — keeps 1 km islets like Pisaras
 FINE_MIN_RING_AREA = 0.000005
 
 # Mid-detail boxes: the settlement-story landfalls (ETAK_PLACES in
-# src/passages.js — keep in sync) whose islands are real but smaller than the
+# www/passages.js — keep in sync) whose islands are real but smaller than the
 # coarse MIN_RING_AREA, so the settlement map has land under its labels.
 # (lon360 min, lon360 max, lat min, lat max)
 MID_BOXES = [

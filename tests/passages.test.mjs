@@ -7,7 +7,7 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const src = p => path.join(here, '..', 'src', p);
+const src = p => path.join(here, '..', 'www', p);
 const { ETAK_ISLANDS, ETAK_PASSAGES } = require(src('passages.js'));
 const { scoreFor } = require(src('core.js'));
 

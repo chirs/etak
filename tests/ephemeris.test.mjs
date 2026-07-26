@@ -9,7 +9,7 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { sunPos, moonPos, planetPos, PLANETS } = require(path.join(here, '..', 'src', 'core.js'));
+const { sunPos, moonPos, planetPos, PLANETS } = require(path.join(here, '..', 'www', 'core.js'));
 
 const JD1969 = 2440412.875; // 1969-07-10 09:00 UTC — the app's departure epoch
 const JD2026 = 2461224.0;   // 2026-07-02 12:00 UTC

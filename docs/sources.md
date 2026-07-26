@@ -180,7 +180,7 @@ and a documented star course.
 
 ## 4. The settlement of the Pacific (story-mode chronology)
 
-Dates used by `ETAK_STORY` (`src/passages.js`). All are ranges rounded for on-chart labels;
+Dates used by `ETAK_STORY` (`www/passages.js`). All are ranges rounded for on-chart labels;
 the archaeology moves — prefer the primary citations when updating.
 
 - **[verified] Out of Taiwan, ~3000–2000 BCE:** Austronesian Neolithic dispersal Taiwan → Luzon

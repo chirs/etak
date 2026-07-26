@@ -7,8 +7,8 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { altAz, riseAz, gmst } = require(path.join(here, '..', 'src', 'core.js'));
-const { compass } = require(path.join(here, '..', 'src', 'stars.js'));
+const { altAz, riseAz, gmst } = require(path.join(here, '..', 'www', 'core.js'));
+const { compass } = require(path.join(here, '..', 'www', 'stars.js'));
 
 const star = g => compass.find(c => c.group === g);
 const LAT = 7.4;   // Satawal — the latitude the sources.md §1 azimuths were computed at
