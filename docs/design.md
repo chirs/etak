@@ -82,6 +82,11 @@ One voyage. Target length **5–15 minutes** (see §8 on time).
    range (~18 mi, `sources.md` §2), cloud over lagoon, swell refraction. Then either the island
    resolves on the horizon, or the search begins (§6).
 
+Steps 2–4 run under the **watch mechanic** (§8): the player chooses continuously between keeping
+watch (real time, tight steering, signs readable) and resting (time runs fast, drift accumulates
+uncorrected). That choice, repeated, is what makes the middle of a voyage a game rather than a
+wait.
+
 **The output is not a score out of 100.** It is *how far off you were*, expressed in **houses and
 etaks**.
 
@@ -149,9 +154,10 @@ Difficulty escalates by **removing information**, not by adding enemies: chart �
 Real legs run days. A playable leg runs minutes. Rather than let the fudge accrete silently, the
 concessions are listed here and nowhere else:
 
-- **C1 — Time dilation.** Sailing time and wall time decouple by an explicit constant alongside
-  `CFG.canoeKn`. **Distances stay real** (R2); the clock runs fast. This is the concession that
-  makes day/night a feature rather than a problem — a leg can cross a dawn.
+- **C1 — Time dilation, under player control.** Sailing time and wall time decouple. **Distances
+  stay real** (R2); the clock runs fast. This is the concession that makes day/night a feature
+  rather than a problem — a leg can cross a dawn. But the rate is **not** a fixed constant; see
+  the watch mechanic below, which is the more important half of this.
 - **C2 — Confidence, not position.** The one HUD affordance we grant: the player sees *how sure
   they are*, never *where they are*. Holding a house cleanly tightens it; ignored drift widens it.
   Rendered in the R1 idiom — a spread of houses, not an error radius in miles.
@@ -160,11 +166,45 @@ concessions are listed here and nowhere else:
 - **C4 — Signs are legible.** Real bird behaviour and swell refraction take a lifetime to read. The
   game makes them noticeable on first encounter.
 
+### The watch — time control as the central decision
+
+Time acceleration is the obvious answer to a slow game, and the obvious way to get it wrong is to
+make it free. A lossless speed control gets held down, the player fast-forwards the leg, and the
+game becomes a cutscene.
+
+So the control is not *speed*. It is **attention**:
+
+- **Keeping watch** — real time. The player is holding the house, correcting drift, and can read
+  signs as they pass.
+- **Resting** — time runs fast. Nobody is correcting precisely, so **drift accumulates
+  uncorrected**, and signs may slip past unnoticed.
+
+This is the mechanic the loop in §4 was missing. It makes the tension continuous rather than
+confined to the departure choice and the final commit: *you cannot afford to attend the whole way,
+and you cannot afford to rest the whole way.*
+
+Three consequences, all good:
+
+- **It satisfies R1 for free.** A "×16" speed slider is a modern clock idiom and would have
+  violated the units rule. *Keep watch / rest* is a navigator's verb and is the same control.
+- **It gives day and night a strategic rhythm.** The star compass is only available at night
+  (§4.2). So: rest through the day, when there is less to lose; keep watch at night, when the
+  compass is up. A tactical pattern that falls out of the real technique rather than being
+  imposed on it.
+- **It hands session length to the player.** A voyage runs five minutes or twenty depending on
+  how much the player is willing to not-look.
+
+*Sourcing note:* the general shape — the navigator attends, crew hold the steering, precision
+degrades when the navigator is not on it — is consistent with the ethnography, but Gladwin's
+account of the navigator's sleep discipline on a passage **has not been checked** for this
+document. Verify before the framing appears in player-facing text (R4).
+
 **The hole this design does not close:** a sim with no economy and no combat can go boring at
-minute 20. The entire content budget must go into **making the sea not empty** — signs, weather
-shifts, the day/night handover, the guide star setting on you, birds at dawn. If a leg is ten
-minutes of holding a heading with nothing happening, none of the above saves it. This is the
-project's main design risk and should be tested early with a deliberately short leg.
+minute 20. The watch mechanic mitigates this — it lets the player skip the flat parts and gives
+them a reason to care about the sharp ones — but it does not fix an empty sea, it only shortens
+the player's exposure to one. The content budget still has to go into **signs, weather shifts, the
+day/night handover, the guide star setting, birds at dawn**. This remains the project's main design
+risk and should be tested early with a deliberately short leg.
 
 
 ## 9. Other oceans
@@ -200,6 +240,10 @@ there.
    once it carries real consequence?
 4. **Session shape.** Single voyages, or the settlement timeline as a campaign spine?
 5. **Is the chart ever available mid-voyage,** as a costly glance, or never once underway?
+6. **Can rest be interrupted?** Does a passing sign (birds, a squall, the guide star setting) snap
+   the player back to real time automatically, or is missing it entirely the price of resting?
+   Auto-interrupt is kinder and risks making rest strictly dominant; no-interrupt is harsher and
+   makes the choice real. *Leaning: interrupt on weather and landfall signs only, never on drift.*
 
 
 ## 11. What this means for the roadmap

@@ -74,9 +74,11 @@ is one multiple-choice guess, and the boat view (the whole point) carries no gam
       twilight bands, a daytime sky gradient, stars fading out through civil twilight.
       This is a **gameplay** fact, not just a visual one — by day the star compass is
       unavailable and the navigator holds course by sun and swell, which is the real
-      technique and the natural source of accumulated drift. Needs a **time-dilation
-      constant** alongside `CFG.canoeKn`: real legs run days, a playable leg runs minutes,
-      so sailing time and wall time must decouple explicitly rather than by accident.
+      technique and the natural source of accumulated drift. Sailing time and wall time must
+      decouple explicitly — real legs run days, a playable leg runs minutes — but the rate is
+      **player-controlled, not a constant**: see the *watch* mechanic in `docs/design.md` §8
+      (keep watch = real time and tight steering; rest = fast time and uncorrected drift).
+      Day/night is what gives that choice its rhythm, since the star compass is only up at night.
 - [ ] **Hipparcos/HYG star field** — Yale BSC tops out at ~9,100 stars; HYG carries ~120k
       (enough for 15k+ field stars) and has an `hr` column, so the compass-star mapping in
       `tools/build_stars.py` carries over
