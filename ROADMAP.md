@@ -28,6 +28,10 @@
 The simulator is built. What's missing is a game that makes the player *use* it — the puzzle
 is one multiple-choice guess, and the boat view (the whole point) carries no gameplay.
 
+> Design intent for this section — thesis, core loop, the rules it must obey, and the
+> concession list — is written up in **`docs/design.md`**. Read it before starting any item
+> below; it constrains how they're built (notably **R1: no Western units in the interface**).
+
 - [ ] **The blind passage** — the core loop. After choosing a reference island you *sail* it:
       boat view only — no chart, no scrubber, no progress % — watching the reference caret slip
       house to house. At unpredictable moments the navigator's question comes: *which etak are
@@ -64,9 +68,28 @@ is one multiple-choice guess, and the boat view (the whole point) carries no gam
 
 ## Deeper sky
 
+- [ ] **Day and night** — the boat view is permanently at night. Sailing time already advances
+      the sky (`t · legNm / CFG.canoeKn` hours from `CFG.depart`), so the sun is computable from
+      the same `EtakCore.altAz` machinery the stars use: solar position, sunrise/sunset,
+      twilight bands, a daytime sky gradient, stars fading out through civil twilight.
+      This is a **gameplay** fact, not just a visual one — by day the star compass is
+      unavailable and the navigator holds course by sun and swell, which is the real
+      technique and the natural source of accumulated drift. Needs a **time-dilation
+      constant** alongside `CFG.canoeKn`: real legs run days, a playable leg runs minutes,
+      so sailing time and wall time must decouple explicitly rather than by accident.
 - [ ] **Hipparcos/HYG star field** — Yale BSC tops out at ~9,100 stars; HYG carries ~120k
       (enough for 15k+ field stars) and has an `hr` column, so the compass-star mapping in
       `tools/build_stars.py` carries over
+
+
+## Other oceans (post-design-doc)
+
+- [ ] **Region as mechanic, not reskin** — real geography everywhere (Caribbean, Mediterranean,
+      Indian Ocean, Norse Atlantic), but each ocean taught a *different* real method, so a new
+      region is a new verb set rather than new coastlines: etak and the sidereal compass in
+      Micronesia, latitude sailing with the kamal in the Indian Ocean, coastal pilotage and
+      periplus distances in the Mediterranean. `PACIFIC_MAP`/`STAR_MAP`/`ETAK_ISLANDS` would all
+      need to become per-region datasets. Scope and sequencing to be settled in the design doc.
 
 
 ## Done
