@@ -247,6 +247,8 @@ function drawRose(Pw,v,cur){
   ctx.restore();
 }
 const CARDINAL={0:'N',8:'E',16:'S',24:'W'};
+// 'Altair rising' -> 'Altair': the physical star behind a compass point
+const starBaseName=st=>st.replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,'');
 function roseName(i){
   const c=ETAK_COMPASS[i];
   let s=(c.car?(c.pre?c.pre+' ':'')+c.car:c.star).toUpperCase();
@@ -408,10 +410,9 @@ function drawMarkersAndLabels(v,Pw,Aw,Bw,cur){
 }
 
 // ---------- story mode (the settlement of the Pacific) ----------
-// While `story` is set, draw() swaps the voyage layers for migration arcs over
-// the coastlines and loop() eases the camera toward `camTarget` (beat flights).
-// The arc layers are shared with settlement mode, so they take (beat,tBeat)
-// rather than reading the story state.
+// While `story` is set, draw() swaps the voyage layers for migration arcs and
+// loop() eases the camera toward `camTarget`. The arc layers are shared with
+// settlement mode, so they take (beat,tBeat) rather than reading story state.
 let story=null;            // {beat,tBeat} while the walkthrough is playing
 let camTarget=null;        // {cx,cy,zoom} the camera eases toward
 
@@ -420,26 +421,29 @@ function arcProgress(bi,ai,beat,tBeat){
   return Math.max(0,Math.min(1,(tBeat-ai*CFG.storyStagger)/CFG.storyArcSec));
 }
 
+// one migration arc at progress p: great-circle polyline + head dot
+// (head while growing, landfall once there); finished arcs stay as amber shadows
+function drawArcPath(v,from,to,p,on){
+  ctx.strokeStyle=hexA(PAL.amber,on?0.75:0.42);
+  ctx.lineWidth=(on?1.6:1)/v.Z;
+  const N=48;
+  ctx.beginPath();
+  for(let i=0;i<=N;i++){
+    const w=project(gcInterp(from,to,p*i/N));
+    i?ctx.lineTo(w.x,w.y):ctx.moveTo(w.x,w.y);
+  }
+  ctx.stroke();
+  const hw=project(gcInterp(from,to,p));
+  ctx.fillStyle=on?PAL.amber:hexA(PAL.amber,0.65);
+  ctx.beginPath();ctx.arc(hw.x,hw.y,(p<1?3:2.2)/v.Z,0,7);ctx.fill();
+}
+
 function drawArcs(v,beat,tBeat){
-  for(let bi=0;bi<=beat;bi++){
-    const on=bi===beat;
-    ctx.strokeStyle=hexA(PAL.amber,on?0.75:0.42);       // past beats stay as amber shadows
-    ctx.lineWidth=(on?1.6:1)/v.Z;
+  for(let bi=0;bi<=beat;bi++)
     ETAK_STORY[bi].arcs.forEach((arc,ai)=>{
       const p=arcProgress(bi,ai,beat,tBeat);
-      if(p<=0)return;
-      const N=48;
-      ctx.beginPath();
-      for(let i=0;i<=N;i++){
-        const w=project(gcInterp(arc.from,arc.to,p*i/N));
-        i?ctx.lineTo(w.x,w.y):ctx.moveTo(w.x,w.y);
-      }
-      ctx.stroke();
-      const hw=project(gcInterp(arc.from,arc.to,p));    // head while growing, landfall once there
-      ctx.fillStyle=on?PAL.amber:hexA(PAL.amber,0.65);
-      ctx.beginPath();ctx.arc(hw.x,hw.y,(p<1?3:2.2)/v.Z,0,7);ctx.fill();
+      if(p>0)drawArcPath(v,arc.from,arc.to,p,bi===beat);
     });
-  }
 }
 
 function drawArcLabels(v,beat,tBeat){
@@ -461,11 +465,10 @@ function drawArcLabels(v,beat,tBeat){
 }
 
 // ---------- settlement mode (the explorable settlement map) ----------
-// A persistent mode: every migration arc on one chart, driven by a year
-// timeline — the bottom bar becomes a time slider from the first departure
-// (~2350 BCE) to the last landfall (1250 CE). Each arc grows toward its
-// landfall year and can start no earlier than its origin's own settlement,
-// so voyages unfold in true chronological order. Landfalls are clickable.
+// Every migration arc on one chart, driven by a year timeline (the bottom bar
+// becomes a time slider, first departure to last landfall). Each arc grows
+// toward its landfall year, starting no earlier than its origin's own
+// settlement, so voyages unfold chronologically. Landfalls are clickable.
 const TL=(()=>{
   const last=ETAK_STORY.length-1;
   const arcs=[], eras=ETAK_STORY.map(()=>({start:Infinity,end:-Infinity}));
@@ -486,26 +489,12 @@ const settle={beat:0,year:TL.min,playing:false,until:TL.max};
 let settlePlace=null;      // the clicked ETAK_PLACES entry, or null (era card shown)
 const yearText=y=>{const r=Math.round(y/10)*10;return r<0?`${-r} BCE`:`${r} CE`;};
 
-// world-space layer: every arc at its progress for the current year —
-// growing arcs amber, completed ones ghosted
+// world-space layer: every arc at its progress for the current year
 function drawTimeline(v){
-  const N=48;
   for(const e of TL.arcs){
     if(e.coda&&settle.beat!==ETAK_STORY.length-1)continue;
     const p=e.coda?1:clamp((settle.year-e.start)/(e.end-e.start||1),0,1);
-    if(p<=0)continue;
-    const on=e.coda||p<1;
-    ctx.strokeStyle=hexA(PAL.amber,on?0.75:0.42);       // completed voyages stay as amber shadows
-    ctx.lineWidth=(on?1.6:1)/v.Z;
-    ctx.beginPath();
-    for(let i=0;i<=N;i++){
-      const w=project(gcInterp(e.arc.from,e.arc.to,p*i/N));
-      i?ctx.lineTo(w.x,w.y):ctx.moveTo(w.x,w.y);
-    }
-    ctx.stroke();
-    const hw=project(gcInterp(e.arc.from,e.arc.to,p));  // head while growing, landfall once there
-    ctx.fillStyle=on?PAL.amber:hexA(PAL.amber,0.65);
-    ctx.beginPath();ctx.arc(hw.x,hw.y,(p<1?3:2.2)/v.Z,0,7);ctx.fill();
+    if(p>0)drawArcPath(v,e.arc.from,e.arc.to,p,e.coda||p<1);
   }
 }
 
@@ -552,11 +541,9 @@ const MILKY=(()=>{
 })();
 
 // ---------- boat view (third frame): the horizon from the canoe ----------
-// Pure screen space. A first-person window: CFG.fov degrees of azimuth across
-// the width, centered on the course heading plus the gaze offset `look`
-// (drag / ←→ to turn; drag vertically / ↑↓ to tilt the gaze by `pitch`, which
-// slides the horizon down and brings the high sky in — capped so the zenith
-// just reaches the top edge). Dead ahead = look 0, pitch 0 = destination centered.
+// Pure screen space: CFG.fov degrees of azimuth across the width, centered on
+// the course heading plus the gaze (`look` yaw, `pitch` tilt — capped so the
+// zenith just reaches the top edge). look=0, pitch=0 faces the destination.
 const maxPitch=()=>Math.max(0,90-(Math.max(H*0.5,H-CFG.horizonUp)-14)*CFG.fov/W);
 const clampPitch=()=>{pitch=Math.min(Math.max(pitch,0),maxPitch());};
 function drawBoatView(cn,refDeg,cur){
@@ -605,10 +592,9 @@ function drawBoatView(cn,refDeg,cur){
   ctx.strokeStyle=hexA(PAL.teal,0.85);ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(0,hy);ctx.lineTo(W,hy);ctx.stroke();
 
-  // the actual sky: field stars + named compass stars, turning with sailing time.
-  // Atmospheric extinction: airmass (≈1/sin alt, capped at the true horizon value
-  // ~38) dims stars toward the sea line by 10^(-0.4·k·(X−1)). k here is well under
-  // the physical ~0.25 mag/airmass — gentler than nature so the low sky stays alive.
+  // the real sky, turning with sailing time. Atmospheric extinction dims stars
+  // toward the sea line by airmass; k=0.075 mag/airmass is gentler than the
+  // physical ~0.25 so the low sky stays alive.
   const lst=(gmst(voyageMs()/86400000+2440587.5)+cn.lon)%360;
   const dimAt=alt=>Math.pow(10,-0.03*(1/Math.sin(Math.max(alt,1.5)*Math.PI/180)-1));
 
@@ -633,8 +619,7 @@ function drawBoatView(cn,refDeg,cur){
   }
   ctx.restore();
 
-  const curBase=cur>=0?ETAK_COMPASS[cur].star
-    .replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,''):null;
+  const curBase=cur>=0?starBaseName(ETAK_COMPASS[cur].star):null;
   for(const [ra,dec,mag] of STAR_MAP.field){
     const p=altAz(ra,dec,cn.lat,lst);
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
@@ -895,8 +880,12 @@ departEl.addEventListener('change',()=>{
   const ms=Date.parse(departEl.value+':00Z');     // picker value is UTC by convention
   if(!isNaN(ms))DEPART_MS=ms;
 });
-document.getElementById('fChart').addEventListener('click',e=>{fTarget=0;bTarget=0;hideStarCard();departWrap.classList.add('hidden');frameHint.textContent='same voyage, three frames';frameActive(e.target);});
-document.getElementById('fEtak').addEventListener('click',e=>{fTarget=1;bTarget=0;hideStarCard();departWrap.classList.add('hidden');frameHint.textContent='same voyage, three frames';frameActive(e.target);});
+function goAshore(ft){   // leave the boat for chart (ft=0) or navigator (ft=1)
+  fTarget=ft;bTarget=0;hideStarCard();departWrap.classList.add('hidden');
+  frameHint.textContent='same voyage, three frames';
+}
+document.getElementById('fChart').addEventListener('click',e=>{goAshore(0);frameActive(e.target);});
+document.getElementById('fEtak').addEventListener('click',e=>{goAshore(1);frameActive(e.target);});
 document.getElementById('fBoat').addEventListener('click',e=>{bTarget=1;look=0;pitch=0;departWrap.classList.remove('hidden');frameHint.textContent='drag the sea to look around';frameActive(e.target);});
 
 // arrow keys while aboard: ←/→ swing the gaze, ↑/↓ tilt it
@@ -929,7 +918,7 @@ function setMode(m){
   yearLabel.classList.toggle('hidden',m!=='settlement');    // the bar stays: it becomes the time slider
   etakStrip.classList.toggle('hidden',m==='settlement');
   if(m==='settlement'){
-    setPlaying(false);fTarget=0;bTarget=0;departWrap.classList.add('hidden');
+    setPlaying(false);goAshore(0);
     frameActive(document.getElementById('fChart'));
     subEl.textContent='How the Pacific was settled. Press play or drag the years; click a landfall for its story.';
     setEra(0);                       // always open on the whole ocean
@@ -1033,7 +1022,6 @@ const starEra=document.getElementById('starEra'),starTitle=document.getElementBy
 const starText=document.getElementById('starText');
 function hideStarCard(){starPick=null;starCard.classList.add('hidden');}
 document.getElementById('starClose').addEventListener('click',hideStarCard);
-const starBaseName=st=>st.replace(/ (rising|setting|upright)$/,'').replace(/ at 45°.*$/,'');
 function showStarCard(h){
   const s=h.s;starPick=s;
   const houses=ETAK_COMPASS.map((c,i)=>i).filter(i=>starBaseName(ETAK_COMPASS[i].star)===s.group);
