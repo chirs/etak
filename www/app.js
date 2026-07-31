@@ -924,7 +924,7 @@ function setMode(m){
     setEra(0);                       // always open on the whole ocean
   }
   else if(m==='puzzle'){makePuzzle();}
-  else{subEl.textContent='Free exploration. Drag the reference island; watch how its position reshapes the etaks. Scroll to zoom, drag the sea to pan.';makeSandbox();}
+  else{subEl.textContent='Drag the reference island and watch it reshape the etaks. Scroll to zoom, drag the sea to pan.';makeSandbox();}
 }
 mPuzzle.addEventListener('click',()=>setMode('puzzle'));
 mSandbox.addEventListener('click',()=>setMode('sandbox'));

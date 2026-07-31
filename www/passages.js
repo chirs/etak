@@ -109,9 +109,9 @@ const ETAK_COMPASS = [
 // Chronology and framing from docs/sources.md §4.
 const ETAK_PLACES = {
   taiwan:   { name: 'TAIWAN',      lat: 22.75,  lon: 121.15,  date: '~3000 BCE', year: -3000,
-    blurb: 'The Austronesian homeland. The farmers and fishers who crossed to Luzon from ' +
-           'here spoke the ancestor of a language family that now stretches from Madagascar ' +
-           'to Rapa Nui — and carried the boats that made the whole expansion possible.' },
+    blurb: 'The Austronesian homeland. The farmers and fishers who crossed to Luzon spoke ' +
+           'the ancestor of a language family that now stretches from Madagascar to Rapa ' +
+           'Nui — and sailed the boats that made the expansion possible.' },
   luzon:    { name: 'LUZON',       lat: 18.0,   lon: 121.7,   date: '~2200 BCE', year: -2200,
     blurb: 'First step of the dispersal: Neolithic farmers crossed the Luzon Strait from ' +
            'Taiwan around 2200 BCE and spread south through the Philippine archipelago.' },
@@ -127,8 +127,8 @@ const ETAK_PLACES = {
     blurb: 'Staging ground of the Lapita people, whose dentate-stamped pottery traces the ' +
            'leap past the Solomons into empty ocean.' },
   santacruz:{ name: 'SANTA CRUZ',  lat: -10.7,  lon: 165.8,   date: '~1100 BCE', year: -1100,
-    blurb: 'Just past the edge of island intervisibility: the first landfall in that ocean ' +
-           'that could not be seen from any island behind it.' },
+    blurb: 'Just past the edge of island intervisibility: the first landfall that could ' +
+           'not be seen from any island behind it.' },
   vanuatu:  { name: 'VANUATU',     lat: -17.7,  lon: 168.3,   date: '~1000 BCE', year: -1000,
     blurb: 'Lapita canoes ran down the Vanuatu arc within a few generations of leaving the ' +
            'Solomons, and New Caledonia soon after.' },
@@ -152,7 +152,7 @@ const ETAK_PLACES = {
            'doldrums and into a different sky of stars.' },
   rapanui:  { name: 'RAPA NUI',    lat: -27.11, lon: -109.35, date: '~1200 CE', year: 1200,
     blurb: 'The eastern corner of the triangle and the most remote inhabited island on ' +
-           'earth — a target a few kilometres wide, found across thousands of empty miles.' },
+           'earth — a target a few miles wide, found across thousands of empty miles.' },
   aotearoa: { name: 'AOTEAROA',    lat: -35.5,  lon: 173.8,   date: '~1250 CE', year: 1250,
     blurb: 'The southern corner of the triangle and the last great landmass on the planet ' +
            'reached by humans — the end of the longest colonization arc in history.' },
