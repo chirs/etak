@@ -5,86 +5,79 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Etak is a zero-dependency interactive canvas visualization of Micronesian star-path ("etak")
-navigation, rendered over a real, zoomable chart of the Pacific. There is no build step or
-package manager at runtime. The app is these files in `www/`:
+navigation, rendered over a real, zoomable chart of the Pacific. No build step, no package
+manager. The app is these files in `www/`:
 
-- `index.html` — markup only; links the stylesheet and the scripts, in load order.
+- `index.html` — markup only; links the stylesheet and scripts in load order.
 - `styles.css` — all CSS, including the `:root` color tokens (the single source of truth for the palette).
-- `core.js` — the pure **spherical** geometry/scoring core, exposed as the global `EtakCore`
-  (no DOM, no canvas, no projection — great-circle math over `{lat,lon}` plus the `altAz`/`riseAz`
-  astronomy used by the boat-view sky).
-- `map-data.js` — **generated** Pacific coastlines (`const PACIFIC_MAP`); do not edit by hand.
-- `stars.js` — **generated** star catalog (`const STAR_MAP`): Yale BSC field stars to V≤3 plus the
-  named Carolinian compass stars, whose `group` strings match `ETAK_COMPASS`; do not edit by hand.
-- `passages.js` — hand-authored content: the `ETAK_ISLANDS` gazetteer and `ETAK_PASSAGES` list.
-- `app.js` — everything else: projection, camera, puzzle/sandbox state, canvas rendering, UI wiring, the rAF loop.
+- `core.js` — the pure spherical geometry/scoring core, global `EtakCore` (no DOM, canvas, or
+  projection): great-circle math over `{lat,lon}` plus the `altAz`/`riseAz` astronomy behind the
+  boat-view sky.
+- `map-data.js` — **generated** Pacific coastlines (`PACIFIC_MAP`); never hand-edit.
+- `stars.js` — **generated** star catalog (`STAR_MAP`): Yale BSC field stars to V≤3 plus the named
+  Carolinian compass stars, whose `group` strings match `ETAK_COMPASS`; never hand-edit.
+- `passages.js` — hand-authored content: the `ETAK_ISLANDS` gazetteer, `ETAK_PASSAGES`,
+  `ETAK_COMPASS`, `ETAK_PLACES`, and `ETAK_STORY`.
+- `app.js` — everything else: projection, camera, state, rendering, UI wiring, the rAF loop.
 
-`tools/build_map.py` regenerates `map-data.js` from Natural Earth 10m land (full detail inside
-the Caroline–Mariana fine region; mid-detail boxes around the settlement-story landfalls) plus
-OSM/Overpass coastlines for the outer-Caroline atolls Natural Earth lacks (Satawal, Lamotrek,
-West Fayu, Elato, Pikelot, Gaferut), and `tools/build_stars.py` regenerates `stars.js` from the
-Yale Bright Star Catalog — both stdlib-only, source data checked in next to them. Tests:
-`node --test 'tests/**/*.test.mjs'`.
+`tools/build_map.py` regenerates `map-data.js` (Natural Earth 10m land plus OSM coastlines for the
+outer-Caroline atolls Natural Earth lacks); `tools/build_stars.py` regenerates `stars.js` (Yale
+Bright Star Catalog). Both are stdlib-only, with source data checked in next to them. To widen or
+shift the chart, change the bounds/tolerance constants at the top of `build_map.py` and re-run.
+Tests: `node --test 'tests/**/*.test.mjs'`.
 
-Scripts are plain classic `<script>` tags (not ES modules) so `www/index.html` still works opened
-directly over `file://`. Load order matters: `core.js` → `map-data.js` → `stars.js` →
-`passages.js` → `app.js` (`app.js` consumes all four globals). The data/content scripts also
-expose a `module.exports` bridge so Node tests can `require` them; this is inert in the browser.
+Scripts are classic `<script>` tags (not ES modules) so `index.html` works over `file://`. Load
+order matters: `core.js` → `map-data.js` → `stars.js` → `passages.js` → `app.js`. The data/content
+scripts expose a `module.exports` bridge for Node tests; it is inert in the browser. To run: open
+`www/index.html`, or `python3 -m http.server --directory www`. Fonts load from Google Fonts, so
+the intended typography needs a network connection.
 
-To run it: open `www/index.html` in a browser, or serve the directory (`python3 -m http.server
---directory www`). Fonts load from Google Fonts, so a network connection is needed for the intended typography.
+## Domain concepts
 
-## Domain concepts (needed to make sense of the code)
+A canoe sails a straight leg from HOME (`A`) to DESTINATION (`B`); a **reference island** (`C`)
+sits off to the side. As the canoe advances, the bearing canoe→reference sweeps across the
+32-point sidereal star compass (each point a `HOUSE = 11.25°` wedge). Each crossing into a new
+house marks an **etak** boundary, segmenting the voyage. A good reference island produces ~6
+evenly-spaced etaks.
 
-The premise: a canoe sails a straight leg from HOME (`A`) to DESTINATION (`B`). A **reference
-island** (`C`) sits off to the side. As the canoe advances, the *bearing* from canoe→reference
-sweeps across the 32-point sidereal "star compass" (each point is a `HOUSE = 11.25°` wedge).
-Each time the bearing crosses into a new star house, that marks an **etak** boundary —
-segmenting the voyage into legs. A good reference island produces ~6 evenly-spaced etaks.
+Everything is drawn **east-up** (world rotated −90°) — the traditional Carolinian alignment,
+compass anchored on Altair.
 
-The whole view is drawn **east-up** (world rotated −90°) — the traditional Carolinian
-alignment, compass anchored on Altair with east at the top.
-
-Three **frames** render the *same* voyage. CHART↔NAVIGATOR cross-fade by `f`; BOAT is a
-discrete third state faded through night by `b` (different projection — no blend possible):
+Three **frames** render the same voyage. CHART↔NAVIGATOR cross-fade by `f`; BOAT is a discrete
+third state faded through night by `b` (different projection — no blend possible):
 - **CHART** (`f=0`): canoe moves, islands fixed — the outside/map view (camera-centered).
-- **NAVIGATOR** (`f=1`): canoe fixed at center, islands drift past — the Etak mental model
-  where the reference island "moves." The crossfade blends centering only (rotation is constant).
-- **BOAT** (`b=1`): the horizon from the canoe (`drawBoatView`) — a first-person window of
-  `CFG.fov` (110°) of azimuth, centered on the course heading plus the gaze offset `look`
-  (drag the canvas or use ←/→, `CFG.lookStep` degrees per press, to turn a full 360°; drag
-  vertically or use ↑/↓ to tilt the gaze `pitch` up to the zenith; both reset on boarding). Star houses ticked along the horizon line, the reference island's caret
-  sliding across them (one etak = one house); the solid hull silhouette anchors to the
-  *heading* azimuth, so it leaves the frame when you look abeam, and occludes the rolling
-  swell lines that undulate below the horizon (`CFG.swell*`). (That hull is a placeholder
-  yacht bow; `docs/canoe.md` + `docs/refs/canoe-images/` hold the real-proa form reference for
-  reshaping it — the "Authentic canoe" roadmap item.) The sky above is the real one
+- **NAVIGATOR** (`f=1`): canoe fixed at center, islands drift past — the etak mental model.
+  The crossfade blends centering only; rotation is constant.
+- **BOAT** (`b=1`): the first-person horizon from the canoe (`drawBoatView`) — a `CFG.fov` window
+  of azimuth centered on the course heading plus the gaze (`look` yaw, `pitch` tilt; drag the
+  canvas or use the arrow keys; both reset on boarding). Star houses tick along the horizon line,
+  the reference island's caret sliding across them (one etak = one house). The hull silhouette
+  anchors to the *heading* azimuth — it leaves the frame when you look abeam — and occludes the
+  swell. (It's a placeholder yacht bow; `docs/canoe.md` + `docs/refs/canoe-images/` hold the
+  real-proa reference for the "Authentic canoe" roadmap item.) The sky is the real one
   (`STAR_MAP` + `EtakCore.altAz`), rotating with sailing time (`t · legNm / CFG.canoeKn` hours
-  from a departure anchored by `CFG.depart`, adjustable while aboard via the departure
-  picker, which repositions the whole sky); the current house's physical star glows amber.
-  A still click picks the nearest named compass star (via `starHits`, refreshed each frame)
-  and opens its card (`#starCard`): names, live alt/bearing, rise/set azimuths, houses.
-  Pure screen space; chart pan/zoom are disabled while active.
+  from `CFG.depart`, adjustable while aboard via the departure picker); the current house's
+  physical star glows amber. A still click picks the nearest named compass star (via `starHits`)
+  and opens its card (`#starCard`). Pure screen space; chart pan/zoom are disabled while aboard.
 
 Three **modes**:
 - **PUZZLE**: a documented real passage with 4 real candidate islands; pick the one that best
-  segments the voyage. Score panel + chooser visible. NEW VOYAGE cycles `ETAK_PASSAGES`.
+  segments the voyage. NEW VOYAGE cycles `ETAK_PASSAGES`.
 - **SANDBOX**: one draggable *hypothetical* reference island; free exploration.
 - **SETTLEMENT**: the explorable settlement map — every migration arc over bare coastlines,
-  driven by a **year timeline** (`TL` in `app.js`): the bottom bar becomes a time slider from
-  ~2350 BCE to 1250 CE, each arc grows toward its landfall year (`ETAK_PLACES[..].year`) and
-  starts no earlier than its origin's own settlement, so voyages unfold chronologically. Era
-  buttons fly the camera and play that era's years; landfalls are clickable (`ETAK_PLACES`
-  cards); Hipour's 1969 arc is a coda drawn only on the final era. Frames/readout/story-link
-  are hidden; entry always opens on beat 0, the whole ocean.
+  driven by a year timeline (`TL` in `app.js`): the bottom bar becomes a time slider from
+  ~2350 BCE to 1250 CE, each arc growing toward its landfall year (`ETAK_PLACES[..].year`) and
+  starting no earlier than its origin's own settlement, so voyages unfold chronologically. Era
+  buttons fly the camera and play that era's years; landfalls open `ETAK_PLACES` cards; Hipour's
+  1969 arc is a coda drawn only on the final era. Frames/readout/story-link are hidden; entry
+  always opens on beat 0, the whole ocean.
 
 A **story mode** overlays any of them: a six-beat walkthrough of the settlement of the Pacific
-(`ETAK_STORY` in `passages.js`; chronology sourced in `docs/sources.md` §4). While `story` is
-set, `draw()` swaps the voyage layers for great-circle migration arcs over the coastlines
-(`drawArcs`/`drawArcLabels`, shared with SETTLEMENT mode, which drives them from its own
-`settle.{beat,tBeat}` state) and `loop()` eases the camera toward `camTarget` beat frames.
-Autoplays on first visit (localStorage `etakStorySeen`), replays from the header button,
-exits via SKIP/ESC or the final SAIL hand-off into the puzzle.
+(`ETAK_STORY`; chronology sourced in `docs/sources.md` §4). While `story` is set, `draw()` swaps
+the voyage layers for great-circle migration arcs (`drawArcs`/`drawArcLabels`, shared with
+SETTLEMENT mode, which drives them from its own `settle` state) and `loop()` eases the camera
+toward `camTarget`. Autoplays on first visit (localStorage `etakStorySeen`), replays from the
+header button, exits via SKIP/ESC or the final SAIL hand-off into the puzzle.
 
 `A`, `B`, `C` are `{lat,lon,name}` points. All navigation math is spherical (great-circle), so
 bearings and etaks are correct regardless of the render projection.
@@ -92,58 +85,44 @@ bearings and etaks are correct regardless of the render projection.
 ## Architecture
 
 `core.js` is one pure module (`EtakCore`); `app.js` is one IIFE organized top-to-bottom into
-commented sections. Key pieces and their coupling:
+commented sections:
 
-- **Geometry / scoring core** (`core.js`: `gcBearing`, `gcDistNm`, `gcInterp`, `houseOf`,
-  `boundariesFor`, `scoreFor`, plus `HOUSE`, `SWEET`, `verdictText`): pure spherical functions over
-  `{lat,lon}` points, with no DOM/canvas/projection dependency. `boundariesFor` samples the leg
-  (great-circle interpolated) at N=2000 steps and records the `t` values where the star house of
-  the canoe→ref bearing changes — these boundary `t`s drive both the ticks drawn on the course and
-  the score. `scoreFor` combines *count fitness* (gaussian around `SWEET=6` etaks) and *evenness*
-  (1 − coefficient of variation of segment lengths), 50/50, scaled to 100. `app.js` pulls what it
-  needs from `EtakCore` via a destructuring line at the top.
-- **Passages / puzzle** (`makePuzzle`): loads `ETAK_PASSAGES[passageIndex]` — a real leg and four
-  real candidate islands — and scores each candidate live with the core. Nothing is hand-tuned;
-  the candidate *sets* are curated so each puzzle has a clear (or interestingly ambiguous) answer
-  plus instructive traps (e.g. Satawal sits on the Puluwat→Lamotrek course line → its bearing
-  barely moves). Island coordinates live in `ETAK_ISLANDS` (`passages.js`), sourced from
-  `docs/sources.md` §3.
-- **Projection + camera** (`app.js`): `project({lat,lon})→{x,y}` is plain equirectangular in a
-  Pacific-centered lon360 space (`x=lon360`, `y=−lat`); `unproject` inverts it. The camera
-  (`cam.{cx,cy,zoom}`) supports wheel-zoom-to-cursor and drag-pan (chart frame). Coastlines are
-  built once into a world-space `Path2D` from `PACIFIC_MAP.polys`.
-- **State**: `A,B,C` are the *active* leg/reference (`{lat,lon,name}`); `boundaries` and `live`
-  (the current score object) are recomputed by `recompute()` whenever the reference changes
-  (choice or drag). `t` = voyage progress 0..1; `f` = frame crossfade; `mode`.
+- **Core** (`gcBearing`, `gcDistNm`, `gcInterp`, `houseOf`, `boundariesFor`, `scoreFor`, plus
+  `HOUSE`, `SWEET`, `verdictText`): `boundariesFor` samples the leg at N=2000 steps and records
+  the `t` values where the house of the canoe→ref bearing changes — those boundary `t`s drive
+  both the course ticks and the score. `scoreFor` combines count fitness (gaussian around
+  `SWEET=6`) and evenness (1 − CV of segment lengths), 50/50, scaled to 100.
+- **Puzzle** (`makePuzzle`): loads `ETAK_PASSAGES[passageIndex]` and scores each candidate live.
+  Nothing is hand-tuned; the candidate *sets* are curated for a clear (or interestingly
+  ambiguous) answer plus instructive traps (e.g. Satawal sits on the Puluwat→Lamotrek course
+  line → its bearing barely moves). Coordinates live in `ETAK_ISLANDS` (`docs/sources.md` §3).
+- **Projection + camera**: `project`/`unproject` are plain equirectangular in a Pacific-centered
+  lon360 space (`x=lon360`, `y=−lat`). The camera (`cam.{cx,cy,zoom}`) supports
+  wheel-zoom-to-cursor and drag-pan. Coastlines are built once into a world-space `Path2D`.
+- **State**: `A,B,C` are the active leg/reference; `boundaries` and `live` (the current score)
+  are recomputed by `recompute()` whenever the reference changes. `t` = voyage progress 0..1;
+  `f` = frame crossfade; `mode`.
 - **Rendering** (`draw`): a single canvas redrawn each rAF frame. `viewParams()` is the **single
-  source** for the view transform (east-up rotation, constant; `f` blends the camera center toward
-  the canoe); `applyTransform`, `worldToScreen`, and `screenToWorld` all derive from it and must
-  stay mutual inverses — **change one, change all.** `draw()` computes the per-frame values once
-  (canoe position, canoe→ref bearing, `v` — `viewParams(cn)` takes the precomputed canoe point and
-  returns its projection as `v.P`) and delegates to named layer functions in paint order:
-  `drawSky` → `drawOcean` (screen-space swell lines, world-anchored phase) → world pass (`drawCoast`, `drawRangeRings`, `drawCourse`, `drawTrails`, `drawRose`, `drawBearings`,
-  `drawCanoe`, all under `applyTransform(v)`) → screen pass (`drawGazetteer`, `drawMarkersAndLabels`, via
-  `worldToScreen`, so text stays crisp and upright at any zoom). A new visual feature should be a
-  new layer function slotted into that order. Screen-constant sizes are `pixels / v.Z` in world units.
+  source** of the view transform; `applyTransform`, `worldToScreen`, and `screenToWorld` all
+  derive from it and must stay mutual inverses — **change one, change all.** `draw()` computes
+  per-frame values once and delegates to named layer functions in paint order: `drawSky` →
+  `drawOcean` → world pass under `applyTransform` (`drawCoast`, `drawRangeRings`, `drawCourse`,
+  `drawTrails`, `drawRose`, `drawBearings`, `drawCanoe`) → screen pass (`drawGazetteer`,
+  `drawMarkersAndLabels`, via `worldToScreen`, so text stays crisp and upright at any zoom). A
+  new visual feature should be a new layer function slotted into that order. Screen-constant
+  sizes are `pixels / v.Z` in world units.
 - **Loop**: `requestAnimationFrame(loop)` advances `t` when playing and eases `f` toward `fTarget`.
 
 ## Editing conventions here
 
 - DOM ids/classes live in `index.html`/`styles.css` and are wired to `getElementById` calls in
   `app.js`. Changing an id means updating both places.
-- **Palette single source of truth**: all colors are CSS custom properties in `:root` (`styles.css`),
-  including canvas-only tokens (`--course`, `--tick`, `--rose-ring`, `--rose-minor`, `--ghost`,
-  `--island`, `--ref-fill`, `--dim`, `--land`, `--coast`). `app.js` reads them once via `getComputedStyle` into the `PAL`
-  object; canvas code references `PAL.*` (with `hexA(hex, alpha)` or a `'88'`-style suffix for
-  translucency). Add or change a color in `:root`, not in the drawing code.
-- `viewParams()` (in `app.js`) is the one place the view transform is defined; `applyTransform`,
-  `worldToScreen`, and `screenToWorld` all derive from it and must stay mutual inverses.
-- **Tuning constants live in `CFG`** (top of `app.js`, next to `PAL`): rose radius, trail
-  count/spacing, playback rate, zoom step, drag hit radius, fit fraction, max zoom, crossfade
-  speeds. Put new magic numbers there, not inline in drawing/interaction code.
+- All colors are CSS custom properties in `:root` (`styles.css`), read once into the `PAL` object;
+  canvas code references `PAL.*` (with `hexA(hex, alpha)` or an `'88'`-style suffix for
+  translucency). Add or change colors in `:root`, not in the drawing code.
+- Tuning constants live in `CFG` (top of `app.js`). Put new magic numbers there, not inline.
 - The readout only rewrites its `innerHTML` when the composed string changes (`lastReadout`), and
-  per-leg values (`legNm`) are cached in `recompute()` — don't reintroduce per-frame DOM writes or
-  recomputation of leg constants.
-- Regenerate `map-data.js` only via `tools/build_map.py`; never hand-edit it. To widen/shift the
-  chart, change the bounds/tolerance constants at the top of that script and re-run.
+  per-leg values (`legNm`) are cached in `recompute()` — don't reintroduce per-frame DOM writes
+  or recomputation of leg constants.
+- Regenerate `map-data.js` and `stars.js` only via their `tools/` scripts; never hand-edit.
 - `reduceMotion` (prefers-reduced-motion) gates the frame-ease speed; preserve it.
