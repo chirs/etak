@@ -32,11 +32,13 @@ is one multiple-choice guess, and the boat view (the whole point) carries no gam
 > concession list — is written up in **`docs/design.md`**. Read it before starting any item
 > below; it constrains how they're built (notably **R1: no Western units in the interface**).
 
-- [ ] **The blind passage** — the core loop. After choosing a reference island you *sail* it:
-      boat view only — no chart, no scrubber, no progress % — watching the reference caret slip
-      house to house. At unpredictable moments the navigator's question comes: *which etak are
-      we in? how far to landfall?* Scored by error. Makes the island choice consequential and
-      the sky load-bearing.
+- [x] **The blind passage (v1)** — the core loop. SAIL THE PASSAGE commits to a reference island
+      (chosen sight unseen — scores stay hidden until landfall) and sails it boat-view only: no
+      chart, no scrubber, no progress %. At random moments the navigator asks *which etak are we
+      in?*; errors are revealed only at landfall, in etaks (design.md R1), alongside the verdict.
+      Still open from the original sketch: the *how far to landfall?* question variant, and any
+      cost to attention (no drift yet, so watching the caret answers the question — see the watch
+      mechanic and *steer by the stars* below).
 - [ ] **Landfall as the win condition** — the player calls *etak of birds* when they believe
       they've entered the destination's ~18 mi ring; land shows on the boat-view horizon only
       once truly inside sighting range — the range rings become the payoff
