@@ -42,6 +42,9 @@ function gcInterp(p,q,k){
 
 const houseOf=deg=>Math.floor(((deg+HOUSE/2)%360)/HOUSE);
 
+// current etak index (1-based) at voyage fraction t, given the boundary t's
+const etakAt=(boundaries,t)=>boundaries.filter(b=>b<t).length+1;
+
 // star (ra,dec) as seen from latitude at local sidereal time -> {alt,az},
 // az clockwise from true north, degrees. HA = LST - RA.
 function altAz(raDeg,decDeg,latDeg,lstDeg){
@@ -210,7 +213,7 @@ function verdictText(s){
   return 'Workable. The bearing opens at a usable rate across the leg.';
 }
 
-return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,riseAz,gmst,
+return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,etakAt,altAz,riseAz,gmst,
         PLANETS,sunPos,moonPos,planetPos,boundariesFor,scoreFor,verdictText};
 })();
 

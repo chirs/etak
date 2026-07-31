@@ -1,8 +1,8 @@
 (() => {
 'use strict';
 
-const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,altAz,riseAz,gmst,scoreFor,verdictText,
-       PLANETS,sunPos,moonPos,planetPos} = EtakCore;
+const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,etakAt,altAz,riseAz,gmst,scoreFor,
+       verdictText,PLANETS,sunPos,moonPos,planetPos} = EtakCore;
 
 const canvas = document.getElementById('sea');
 const ctx = canvas.getContext('2d');
@@ -61,6 +61,7 @@ const CFG={
   swellSpeed:0.35,              // boat view: swell roll rate, lines per second
   swellAmp:7,                   // boat view: swell undulation at the bow, px (fades aft of the horizon)
   swellAlpha:0.16,              // boat view: swell line alpha at the bow
+  blindQs:2,                    // blind passage: navigator questions per voyage
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -136,6 +137,7 @@ function recompute(){
 }
 
 // ---------- puzzle (real passages) ----------
+const passageSub=()=>{const pas=ETAK_PASSAGES[passageIndex];subEl.textContent=`${pas.name} — ${pas.note}`;};
 function makePuzzle(){
   const pas=ETAK_PASSAGES[passageIndex];
   const from=ETAK_ISLANDS[pas.from], to=ETAK_ISLANDS[pas.to];
@@ -147,8 +149,9 @@ function makePuzzle(){
   });
   puzzle={candidates,chosenIndex:-1};   // -1 = nothing picked yet, scores hidden
   C=null;
+  setArming(false);
   recompute();
-  subEl.textContent=`${pas.name} — ${pas.note}`;
+  passageSub();
   buildChooserUI();
   fitLeg();
   t=0;scrub.value=0;setPlaying(false);
@@ -161,7 +164,7 @@ function applyChoice(i){
   C={lat:cand.lat,lon:cand.lon,name:cand.name};
   recompute();
   if(firstPick)buildChooserUI();        // rebuild with all four scores revealed
-  [...chooserEl.querySelectorAll('button')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
+  [...chooserEl.querySelectorAll('button:not(#sailBtn)')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
   updateScorePanel();                   // re-seat the detail under the (possibly rebuilt) button
   t=0;scrub.value=0;setPlaying(false);
 }
@@ -803,7 +806,7 @@ function updateReadout(refDeg){
     if(html!==lastReadout){lastReadout=html;readoutEl.innerHTML=html;}
     return;
   }
-  const seg=boundaries.filter(b=>b<t).length+1;
+  const seg=etakAt(boundaries,t);
   if(seg!==lastSeg){lastSeg=seg;
     [...etakStrip.children].forEach((el,i)=>el.classList.toggle('past',boundaries[i]<t));}
   const total=boundaries.length+1;
@@ -836,22 +839,23 @@ function updateScorePanel(){
   scoreDetail.innerHTML=
     `<b>${live.total}</b>/100 · ${live.segs} etak${live.segs===1?'':'s'} · evenness ${Math.round(live.even*100)}%<br>`+
     verdictText(live);
-  const btn=chooserEl.querySelectorAll('button')[puzzle.chosenIndex];
+  const btn=chooserEl.querySelectorAll('button:not(#sailBtn)')[puzzle.chosenIndex];
   if(btn)btn.after(scoreDetail);
 }
 
 const chooserEl=document.getElementById('chooser');
+const sailBtn=document.getElementById('sailBtn');
 function buildChooserUI(){
-  chooserEl.querySelectorAll('button').forEach(b=>b.remove());
+  chooserEl.querySelectorAll('button:not(#sailBtn)').forEach(b=>b.remove());
   hoverIdx=-1;
   const revealed=puzzle.chosenIndex>=0;
   puzzle.candidates.forEach((cd,i)=>{
     const btn=document.createElement('button');
     btn.innerHTML=`<span>${cd.name.trim()}</span>`+(revealed?`<span class="sc">${cd.score.total}</span>`:'');
-    btn.addEventListener('click',()=>applyChoice(i));
+    btn.addEventListener('click',()=>arming?startBlind(i):applyChoice(i));
     btn.addEventListener('mouseenter',()=>{hoverIdx=i;});
     btn.addEventListener('mouseleave',()=>{hoverIdx=-1;});
-    chooserEl.appendChild(btn);
+    chooserEl.insertBefore(btn,sailBtn);
   });
 }
 
@@ -903,6 +907,7 @@ const mSettle=document.getElementById('mSettle');
 const newBtn=document.getElementById('newBtn'),subEl=document.getElementById('sub');
 const framesEl=document.querySelector('.frames');
 function setMode(m){
+  if(blind)endBlind();
   mode=m;
   hideStarCard();
   mPuzzle.classList.toggle('active',m==='puzzle');
@@ -1037,6 +1042,89 @@ function showStarCard(h){
   starCard.classList.remove('hidden');
 }
 
+// ---------- blind passage (the core loop, v1 — see docs/design.md) ----------
+// SAIL commits to a reference island and sails the leg boat-view only: no
+// chart, no scrubber, no readout. The navigator's question pauses the voyage
+// at CFG.blindQs random moments; errors are revealed only at landfall, in
+// etaks rather than points (design.md R1). ESC abandons.
+let blind=null;    // {idx,qs:[t..],qi,marks:[{guess,truth}],done} while sailing
+let arming=false;  // SAIL pressed, waiting for the island pick (scores stay hidden)
+const blindCard=document.getElementById('blindCard');
+const blindEra=document.getElementById('blindEra'),blindTitle=document.getElementById('blindTitle');
+const blindText=document.getElementById('blindText'),blindAnswers=document.getElementById('blindAnswers');
+const blindChrome=[framesEl,document.querySelector('.bar'),document.querySelector('.modeswitch'),
+                   readoutEl,chooserEl,newBtn,document.getElementById('storyBtn')];
+
+function setArming(on){
+  arming=on;
+  sailBtn.classList.toggle('chosen',on);
+  if(on)subEl.textContent='Choose your etak island — you sail on it, sight unseen. No chart until landfall.';
+}
+function blindButtons(labels,onPick){
+  blindAnswers.innerHTML='';
+  labels.forEach((lb,k)=>{
+    const b=document.createElement('button');
+    b.textContent=lb;
+    b.addEventListener('click',()=>onPick(k));
+    blindAnswers.appendChild(b);
+  });
+}
+function startBlind(i){
+  setArming(false);
+  const cd=puzzle.candidates[i];
+  C={lat:cd.lat,lon:cd.lon,name:cd.name};
+  recompute();
+  const span=0.75/CFG.blindQs;   // questions jitter-spread over t in [0.15, 0.9]
+  blind={idx:i,qi:0,marks:[],
+         qs:Array.from({length:CFG.blindQs},(_,k)=>0.15+span*(k+0.5+(Math.random()-0.5)*0.6))};
+  hideStarCard();
+  blindChrome.forEach(el=>el.classList.add('hidden'));
+  departWrap.classList.add('hidden');
+  subEl.textContent='Watch the reference sweep the horizon — the navigator will ask where you are. ESC abandons.';
+  t=0;scrub.value=0;bTarget=1;look=0;pitch=0;
+  setPlaying(true);
+}
+function askBlind(){
+  setPlaying(false);
+  blindEra.textContent='the navigator asks';
+  blindTitle.textContent='Which etak are we in?';
+  blindText.textContent='';
+  const total=boundaries.length+1;
+  blindButtons(Array.from({length:total},(_,k)=>k+1),k=>{
+    blind.marks.push({guess:k+1,truth:etakAt(boundaries,t)});
+    blind.qi++;
+    blindCard.classList.add('hidden');
+    setPlaying(true);
+  });
+  blindCard.classList.remove('hidden');
+}
+function blindLandfall(){
+  blindEra.textContent='landfall';
+  blindTitle.textContent=B.name;
+  const calls=blind.marks.map(m=>{
+    const off=Math.abs(m.guess-m.truth);
+    return `Asked in etak ${m.truth}, you said ${m.guess} — `+
+           (off===0?'dead on.':off===1?'off by one etak.':`off by ${off} etaks.`);
+  });
+  blindText.textContent=calls.join(' ')+' '+verdictText(live);
+  blindButtons(['RETURN TO THE CHART ⟶'],endBlind);
+  blindCard.classList.remove('hidden');
+}
+function endBlind(){
+  const idx=blind.idx;blind=null;
+  blindCard.classList.add('hidden');
+  blindChrome.forEach(el=>el.classList.remove('hidden'));
+  goAshore(0);frameActive(document.getElementById('fChart'));
+  applyChoice(idx);            // the verify step: back to the chooser, scores revealed
+  passageSub();
+}
+sailBtn.addEventListener('click',()=>{
+  if(puzzle.chosenIndex>=0){startBlind(puzzle.chosenIndex);return;}
+  setArming(!arming);
+  if(!arming)passageSub();
+});
+addEventListener('keydown',e=>{if(blind&&e.key==='Escape')endBlind();});
+
 // ---------- camera + sandbox drag (chart frame) ----------
 let dragMode=null,lastX=0,lastY=0;   // 'ref' | 'pan' | 'gaze' | null
 let downX=0,downY=0;                 // pointerdown position (settlement click-vs-drag)
@@ -1098,6 +1186,10 @@ let last=performance.now();
 function loop(now){
   const dt=Math.min((now-last)/1000,0.05);last=now;
   if(playing){t+=dt*CFG.playRate*speedMul;if(t>=1){t=1;setPlaying(false);}scrub.value=t;}
+  if(blind){
+    if(playing&&blind.qi<blind.qs.length&&t>=blind.qs[blind.qi])askBlind();
+    else if(t>=1&&!blind.done){blind.done=true;blindLandfall();}
+  }
   const fSpeed=reduceMotion?CFG.fEaseReduced:CFG.fEase;
   f+=(fTarget-f)*Math.min(1,dt*fSpeed);if(Math.abs(fTarget-f)<0.001)f=fTarget;
   b+=(bTarget-b)*Math.min(1,dt*fSpeed);if(Math.abs(bTarget-b)<0.001)b=bTarget;

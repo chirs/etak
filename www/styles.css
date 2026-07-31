@@ -52,6 +52,15 @@ h1{font-family:'Marcellus',serif;font-weight:400;font-size:clamp(20px,3.2vw,32px
   font-size:10.5px;line-height:1.5;color:var(--faint);
   border-left:2px solid var(--amber);background:var(--panel)}
 .chooser .detail b{color:var(--starlight);font-weight:500}
+.chooser #sailBtn{justify-content:center;margin-top:4px;border-color:var(--amber);color:var(--amber)}
+.chooser #sailBtn:hover{background:#1a273a}
+
+/* blind passage: the navigator's question / landfall card */
+#blindAnswers{justify-content:flex-start;flex-wrap:wrap;gap:8px}
+#blindAnswers button{border:1px solid var(--line);background:var(--panel);color:var(--starlight);
+  min-width:38px;padding:8px 12px;border-radius:8px;font-size:13px;text-align:center}
+#blindAnswers button:hover{border-color:var(--amber);color:var(--amber)}
+#blindAnswers button:focus-visible{outline:2px solid var(--amber)}
 
 .readout{position:fixed;left:24px;bottom:84px;z-index:3;font-family:'IBM Plex Mono',monospace;
   font-size:12.5px;line-height:1.85;color:var(--faint);pointer-events:none}
