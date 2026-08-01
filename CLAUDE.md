@@ -57,12 +57,25 @@ third state faded through night by `b` (different projection — no blend possib
   real-proa reference for the "Authentic canoe" roadmap item.) The sky is the real one
   (`STAR_MAP` + `EtakCore.altAz`), rotating with sailing time (`t · legNm / CFG.canoeKn` hours
   from `CFG.depart`, adjustable while aboard via the departure picker); the current house's
-  physical star glows amber. A still click picks the nearest named compass star (via `starHits`)
-  and opens its card (`#starCard`). Pure screen space; chart pan/zoom are disabled while aboard.
+  physical star glows amber. The sky is also **day-aware**: the sun (validated `sunPos`
+  ephemeris) drives a day wash, a twilight glow at its true azimuth, and star visibility —
+  by day there is no star to steer by or click, though house ticks and carets (instrument UI)
+  remain. Islands within `CFG.sightNm` rise as horizon silhouettes at their true azimuths.
+  A still click picks the nearest named compass star (via `starHits`) and opens its card
+  (`#starCard`). Pure screen space; chart pan/zoom are disabled while aboard.
 
 Three **modes**:
 - **PUZZLE**: a documented real passage with 4 real candidate islands; pick the one that best
-  segments the voyage. NEW VOYAGE cycles `ETAK_PASSAGES`.
+  segments the voyage. NEW VOYAGE cycles `ETAK_PASSAGES`. The **blind passage** (SAIL THE
+  PASSAGE, `startBlind` in `app.js`) is the game loop layered on it: commit to a reference
+  (scores stay hidden), sail boat-view-only under a per-voyage hidden current
+  (`EtakCore.driftTrack` — the canoe holds the planned course while the sea displaces it),
+  answer "which etak are we in?" at random pauses, declare *etak of birds* (`#birdsBtn`) when
+  you believe you've entered the destination's ring, and get everything revealed only at
+  landfall — errors in etaks, the arrival, the current named by its star house, then the chart
+  with the true wake ghosted beside the planned course. All blind-run truths (positions,
+  question answers, ring entry) come from the drifted track, never the ideal schedule; the
+  interface never shows Western units mid-run (design.md R1).
 - **SANDBOX**: one draggable *hypothetical* reference island; free exploration.
 - **SETTLEMENT**: the explorable settlement map — every migration arc over bare coastlines,
   driven by a year timeline (`TL` in `app.js`): the bottom bar becomes a time slider from
