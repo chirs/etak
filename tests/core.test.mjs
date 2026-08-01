@@ -79,6 +79,36 @@ test('a well-abeam reference outscores an on-course-line one', () => {
     `abeam ${abeam.total} should beat inline ${inline.total}`);
 });
 
+test('gcDest inverts bearing and distance', () => {
+  const q = EtakCore.gcDest(Puluwat, 63, 100);
+  assert.ok(Math.abs(EtakCore.gcDistNm(Puluwat, q) - 100) < 0.1);
+  assert.ok(Math.abs(EtakCore.gcBearing(Puluwat, q) - 63) < 0.5);
+});
+
+test('driftTrack with no current arrives at the destination', () => {
+  const tr = EtakCore.driftTrack(Puluwat, Chuuk, 0, 0);
+  assert.ok(EtakCore.gcDistNm(tr[tr.length - 1], Chuuk) < 1);
+  const Pisaras = { lat: 8.569, lon: 150.4185 };
+  assert.equal(EtakCore.boundariesForTrack(tr, Pisaras).length,
+               EtakCore.boundariesFor(Puluwat, Chuuk, Pisaras).length);
+});
+
+test('a beam current sets the arrival off by ~rate x leg', () => {
+  const legNm = EtakCore.gcDistNm(Puluwat, Chuuk);
+  const course = EtakCore.gcBearing(Puluwat, Chuuk);
+  const tr = EtakCore.driftTrack(Puluwat, Chuuk, (course + 90) % 360, 0.1);
+  const off = EtakCore.gcDistNm(tr[tr.length - 1], Chuuk);
+  assert.ok(Math.abs(off - 0.1 * legNm) < 0.02 * legNm,
+    `off ${off.toFixed(1)} nm vs expected ~${(0.1 * legNm).toFixed(1)}`);
+});
+
+test('trackAt spans the sampled track', () => {
+  const tr = EtakCore.driftTrack(Puluwat, Chuuk, 200, 0.05);
+  const a = EtakCore.trackAt(tr, 0), z = EtakCore.trackAt(tr, 1);
+  assert.ok(Math.abs(a.lat - tr[0].lat) < 1e-9 && Math.abs(a.lon - tr[0].lon) < 1e-9);
+  assert.ok(Math.abs(z.lat - tr[tr.length - 1].lat) < 1e-9);
+});
+
 test('reversing the leg preserves the etak boundary count', () => {
   const Pisaras = { lat: 8.569, lon: 150.4185 };
   const fwd = EtakCore.boundariesFor(Puluwat, Chuuk, Pisaras);

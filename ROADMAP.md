@@ -52,7 +52,11 @@ is one multiple-choice guess, and the boat view (the whole point) carries no gam
       (same pattern as `etakStorySeen`)
 - [ ] *Stretch:* **steer by the stars** — at each etak boundary, confirm the heading by picking
       the right star house from the boat view; wind/leeway drift pushes the canoe off-course
-      and the reference island's bearing betrays it (needs a small drift model in the core)
+      and the reference island's bearing betrays it. **The drift model is built** (core
+      `driftTrack`: held-course integration under a per-voyage current, blind runs sail the
+      lived track, landfall discloses the set in star-house terms, the true wake ghosts onto
+      the chart afterward) — what remains is the steering *counter-mechanic*, and the watch
+      mechanic that makes attention the price of correcting it
 
 
 ## Settlement explorer polish

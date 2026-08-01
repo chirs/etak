@@ -1,7 +1,8 @@
 (() => {
 'use strict';
 
-const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,etakAt,altAz,riseAz,gmst,scoreFor,
+const {HOUSE,lerp,gcBearing,gcDistNm,gcInterp,houseOf,etakAt,driftTrack,trackAt,
+       boundariesForTrack,altAz,riseAz,gmst,scoreFor,
        verdictText,PLANETS,sunPos,moonPos,planetPos} = EtakCore;
 
 const canvas = document.getElementById('sea');
@@ -65,6 +66,7 @@ const CFG={
   sightNm:10,                   // boat view: land rises over the horizon within this range
   isleWNm:1.5,                  // boat view: island silhouette half-width, nm
   isleH:9,                      // boat view: island silhouette max height above the horizon, px
+  driftMax:0.12,                // blind passage: max current, fraction of boat speed (C3: forgiving)
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -153,6 +155,7 @@ function makePuzzle(){
   puzzle={candidates,chosenIndex:-1};   // -1 = nothing picked yet, scores hidden
   C=null;
   setArming(false);
+  lastWake=null;
   recompute();
   passageSub();
   buildChooserUI();
@@ -332,6 +335,16 @@ function drawCourse(v,Aw,Bw){
   for(const bt of boundaries){const q=project(canoeAt(bt));
     ctx.strokeStyle=bt<t?PAL.amber+'99':PAL.tick;ctx.lineWidth=1.5/v.Z;
     ctx.beginPath();ctx.moveTo(q.x-nx*tickL,q.y-ny*tickL);ctx.lineTo(q.x+nx*tickL,q.y+ny*tickL);ctx.stroke();}
+}
+
+// the last blind run's true track, ghosted beside the planned course
+function drawWake(v){
+  if(!lastWake)return;
+  ctx.save();ctx.strokeStyle=PAL.teal;ctx.globalAlpha=0.5;ctx.lineWidth=1.2/v.Z;
+  ctx.setLineDash([2/v.Z,4/v.Z]);
+  ctx.beginPath();
+  lastWake.forEach((p,k)=>{const w=project(p);k?ctx.lineTo(w.x,w.y):ctx.moveTo(w.x,w.y);});
+  ctx.stroke();ctx.setLineDash([]);ctx.restore();
 }
 
 // island drift trails (navigator frame) + canoe wake (chart frame)
@@ -553,7 +566,9 @@ const MILKY=(()=>{
 const maxPitch=()=>Math.max(0,90-(Math.max(H*0.5,H-CFG.horizonUp)-14)*CFG.fov/W);
 const clampPitch=()=>{pitch=Math.min(Math.max(pitch,0),maxPitch());};
 function drawBoatView(cn,refDeg,cur){
-  const hdg=gcBearing(cn,B);
+  // aboard blind the helm holds the planned course, unaware of displacement;
+  // otherwise the view homes on the destination
+  const hdg=blind?gcBearing(canoeAt(Math.min(t,0.999)),B):gcBearing(cn,B);
   const relAz=az=>((az-hdg-look+540)%360)-180;      // degrees off the gaze center
   const inView=rel=>Math.abs(rel)<CFG.fov/2+8;
   const pxDeg=W/CFG.fov;                            // px per degree, both axes
@@ -729,7 +744,7 @@ function drawBoatView(cn,refDeg,cur){
   ctx.font='10px "IBM Plex Mono",monospace';
   if(mode==='puzzle'&&puzzle){
     puzzle.candidates.forEach((cd,i)=>{
-      if(i===puzzle.chosenIndex)return;
+      if(i===(blind?blind.idx:puzzle.chosenIndex))return;
       const az=gcBearing(cn,cd);if(!inView(relAz(az)))return;
       const x=azX(az), hot=i===hoverIdx;
       caret(x,hot?hexA(PAL.amber,0.6):hexA(PAL.dim,0.7));
@@ -764,7 +779,8 @@ function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0);
   drawSky();
 
-  const cn=canoeAt(t);
+  // blind: the lived, drifted position; everywhere else the planned schedule
+  const cn=blind&&blind.track?trackAt(blind.track,t):canoeAt(t);
   const refDeg=C?gcBearing(cn,C):null;
   const cur=refDeg==null?-1:houseOf(refDeg);
   const be=ease(b);
@@ -790,6 +806,7 @@ function draw(){
     }else{
       drawRangeRings(v);
       drawCourse(v,Aw,Bw);
+      drawWake(v);
       drawTrails(v,Pw,Aw);
       drawRose(Pw,v,cur);
       drawBearings(v,Pw);
@@ -934,6 +951,7 @@ const newBtn=document.getElementById('newBtn'),subEl=document.getElementById('su
 const framesEl=document.querySelector('.frames');
 function setMode(m){
   if(blind)endBlind();
+  lastWake=null;
   mode=m;
   hideStarCard();
   mPuzzle.classList.toggle('active',m==='puzzle');
@@ -1073,8 +1091,9 @@ function showStarCard(h){
 // chart, no scrubber, no readout. The navigator's question pauses the voyage
 // at CFG.blindQs random moments; errors are revealed only at landfall, in
 // etaks rather than points (design.md R1). ESC abandons.
-let blind=null;    // {idx,qs:[t..],qi,marks:[{guess,truth}],done} while sailing
+let blind=null;    // {idx,qs,qi,marks,call,drift,track,bounds,tBirds,done} while sailing
 let arming=false;  // SAIL pressed, waiting for the island pick (scores stay hidden)
+let lastWake=null; // the drifted track of the last blind run, ghosted on the chart
 const blindCard=document.getElementById('blindCard');
 const blindEra=document.getElementById('blindEra'),blindTitle=document.getElementById('blindTitle');
 const blindText=document.getElementById('blindText'),blindAnswers=document.getElementById('blindAnswers');
@@ -1085,7 +1104,7 @@ birdsBtn.addEventListener('click',()=>{
   if(!blind||blind.call)return;
   blind.call={t};
   birdsBtn.classList.add('called');
-  birdsBtn.textContent=`called · etak ${etakAt(boundaries,t)}`;
+  birdsBtn.textContent=`called · etak ${etakAt(blind.bounds,t)}`;
 });
 
 function setArming(on){
@@ -1104,12 +1123,20 @@ function blindButtons(labels,onPick){
 }
 function startBlind(i){
   setArming(false);
+  lastWake=null;
   const cd=puzzle.candidates[i];
   C={lat:cd.lat,lon:cd.lon,name:cd.name};
   recompute();
+  // roll this passage's current and integrate the lived track; the ring entry
+  // and the etak boundaries the player will experience come from that track
+  const dir=Math.random()*360, rate=Math.random()*CFG.driftMax;
+  const track=driftTrack(A,B,dir,rate);
+  let tBirds=null;
+  for(let k=0;k<track.length;k++)
+    if(gcDistNm(track[k],B)<=CFG.birdsNm){tBirds=k/(track.length-1);break;}
   const span=0.75/CFG.blindQs;   // questions jitter-spread over t in [0.15, 0.9]
   blind={idx:i,qi:0,marks:[],call:null,
-         tBirds:Math.max(0,1-CFG.birdsNm/legNm),   // ring entry: exact under uniform speed
+         drift:{dir,rate},track,bounds:boundariesForTrack(track,C),tBirds,
          qs:Array.from({length:CFG.blindQs},(_,k)=>0.15+span*(k+0.5+(Math.random()-0.5)*0.6))};
   birdsBtn.classList.remove('hidden','called');
   birdsBtn.textContent='CALL · ETAK OF BIRDS';
@@ -1126,9 +1153,9 @@ function askBlind(){
   blindEra.textContent='the navigator asks';
   blindTitle.textContent='Which etak are we in?';
   blindText.textContent='';
-  const total=boundaries.length+1;
+  const total=blind.bounds.length+1;
   blindButtons(Array.from({length:total},(_,k)=>k+1),k=>{
-    blind.marks.push({guess:k+1,truth:etakAt(boundaries,t)});
+    blind.marks.push({guess:k+1,truth:etakAt(blind.bounds,t)});
     blind.qi++;
     blindCard.classList.add('hidden');
     setPlaying(true);
@@ -1139,26 +1166,50 @@ function blindLandfall(){
   birdsBtn.classList.add('hidden');
   blindEra.textContent='landfall';
   blindTitle.textContent=B.name;
+  const bounds=blind.bounds;
   const asks=blind.marks.map(m=>{
     const off=Math.abs(m.guess-m.truth);
     return `Asked in etak ${m.truth}, you said ${m.guess} — `+
            (off===0?'dead on.':off===1?'off by one etak.':`off by ${off} etaks.`);
   });
-  const eb=etakAt(boundaries,blind.tBirds);
+  // the call, judged against the lived ring entry (null = the current carried you wide)
   let call;
-  if(!blind.call)call='The island rose unannounced — you never called the birds.';
-  else{
-    const ec=etakAt(boundaries,blind.call.t), d=eb-ec;
+  if(blind.tBirds==null){
+    call=blind.call
+      ?`You called the birds in etak ${etakAt(bounds,blind.call.t)} — but the birds never came.`
+      :'You never called the birds — and the birds never came.';
+  }else if(!blind.call){
+    call='The birds came unannounced — you never called them.';
+  }else{
+    const eb=etakAt(bounds,blind.tBirds), ec=etakAt(bounds,blind.call.t), d=eb-ec;
     call=d===0?`You called the birds in etak ${ec} — dead on.`:
          d>0?`You called the birds in etak ${ec}; they begin in etak ${eb} — ${d} etak${d>1?'s':''} early.`:
               `You called the birds in etak ${ec}; they had been with you since etak ${eb} — ${-d} etak${d<-1?'s':''} late.`;
   }
-  blindText.textContent=[...asks,call,verdictText(live)].join(' ');
+  // arrival, from the true end of the track
+  const end=blind.track[blind.track.length-1];
+  const dB=gcDistNm(end,B);
+  let arrive;
+  if(dB<=CFG.sightNm)arrive=`${B.name} rose off the bow.`;
+  else if(dB<=CFG.birdsNm)arrive='The birds are here, but no island yet — the search would begin.';
+  else{
+    const off=((gcBearing(end,B)-gcBearing(canoeAt(0.999),B)+540)%360)-180;
+    const n=Math.max(1,Math.round(Math.abs(off)/HOUSE));
+    arrive=`No birds, no island — ${B.name} lay ${n===1?'a house':n+' houses'} to `+
+           `${off<0?'port':'starboard'}. The search would begin.`;
+  }
+  // the current, disclosed only now, named by its star house
+  const c=ETAK_COMPASS[houseOf(blind.drift.dir)];
+  const disc=blind.drift.rate<0.03?'The sea ran true this passage.':
+    `All passage the current set you toward ${c.car?(c.pre?c.pre+' ':'')+c.car:c.star}.`;
+  blindText.textContent=[...asks,call,arrive,disc,verdictText(live)].join(' ');
   blindButtons(['RETURN TO THE CHART ⟶'],endBlind);
   blindCard.classList.remove('hidden');
 }
 function endBlind(){
-  const idx=blind.idx;blind=null;
+  const idx=blind.idx;
+  lastWake=blind.track;         // the verify payoff: the wake stays on the chart
+  blind=null;
   birdsBtn.classList.add('hidden');
   blindCard.classList.add('hidden');
   blindChrome.forEach(el=>el.classList.remove('hidden'));

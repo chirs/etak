@@ -45,6 +45,51 @@ const houseOf=deg=>Math.floor(((deg+HOUSE/2)%360)/HOUSE);
 // current etak index (1-based) at voyage fraction t, given the boundary t's
 const etakAt=(boundaries,t)=>boundaries.filter(b=>b<t).length+1;
 
+// destination point from p along initial bearing azDeg, distNm out
+function gcDest(p,azDeg,distNm){
+  const δ=distNm/R_NM, θ=rad(azDeg), φ1=rad(p.lat), λ1=rad(p.lon);
+  const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(θ));
+  const λ2=λ1+Math.atan2(Math.sin(θ)*Math.sin(δ)*Math.cos(φ1),
+                         Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
+  return {lat:deg(φ2), lon:((deg(λ2)+540)%360)-180};
+}
+
+// ---------- drift: a held-course passage under a steady current ----------
+// The helmsman steers the *planned* course-bearing schedule (blind to
+// displacement) while the current sets the canoe toward dirDeg at rate x boat
+// speed. Integrated on the sphere; returns N+1 sampled {lat,lon} points.
+function driftTrack(A,B,dirDeg,rate,N=600){
+  const ds=gcDistNm(A,B)/N;
+  const pts=[{lat:A.lat,lon:A.lon}];
+  let p=pts[0];
+  for(let i=0;i<N;i++){
+    const hdg=gcBearing(gcInterp(A,B,i/N),B);   // planned schedule, not homing
+    p=gcDest(p,hdg,ds);
+    if(rate>0)p=gcDest(p,dirDeg,rate*ds);
+    pts.push(p);
+  }
+  return pts;
+}
+
+// position at voyage fraction t along a sampled track
+function trackAt(track,t){
+  const x=Math.max(0,Math.min(1,t))*(track.length-1);
+  const i=Math.floor(x);
+  if(i>=track.length-1)return track[track.length-1];
+  const a=track[i],b=track[i+1],k=x-i;
+  return {lat:lerp(a.lat,b.lat,k), lon:lerp(a.lon,b.lon,k)};
+}
+
+// house crossings of bearing(track point -> ref) — boundariesFor for a lived track
+function boundariesForTrack(track,ref){
+  const out=[];let prev=houseOf(gcBearing(track[0],ref));
+  for(let i=1;i<track.length;i++){
+    const h=houseOf(gcBearing(track[i],ref));
+    if(h!==prev){out.push(i/(track.length-1));prev=h;}
+  }
+  return out;
+}
+
 // star (ra,dec) as seen from latitude at local sidereal time -> {alt,az},
 // az clockwise from true north, degrees. HA = LST - RA.
 function altAz(raDeg,decDeg,latDeg,lstDeg){
@@ -213,7 +258,8 @@ function verdictText(s){
   return 'Workable. The bearing opens at a usable rate across the leg.';
 }
 
-return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,etakAt,altAz,riseAz,gmst,
+return {HOUSE,SWEET,R_NM,lerp,gcBearing,gcDistNm,gcInterp,houseOf,etakAt,gcDest,driftTrack,
+        trackAt,boundariesForTrack,altAz,riseAz,gmst,
         PLANETS,sunPos,moonPos,planetPos,boundariesFor,scoreFor,verdictText};
 })();
 
