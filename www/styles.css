@@ -9,6 +9,7 @@
   --course:#285060; --tick:#3a4c66; --rose-ring:#33445e; --rose-minor:#4a5b76;
   --ghost:#243247; --island:#2a3a4f; --ref-fill:#4a3a22;
   --land:#1a2536; --coast:#33465f; --range:#2f4a58; --wave:#7e96b6;
+  --day:#3d5875; --dawn:#d99a5b;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}

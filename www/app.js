@@ -21,7 +21,7 @@ const PAL = {
   course:cv('--course'), tick:cv('--tick'), roseRing:cv('--rose-ring'),
   roseMinor:cv('--rose-minor'), ghost:cv('--ghost'), island:cv('--island'),
   refFill:cv('--ref-fill'), land:cv('--land'), coast:cv('--coast'),
-  range:cv('--range'), wave:cv('--wave'),
+  range:cv('--range'), wave:cv('--wave'), day:cv('--day'), dawn:cv('--dawn'),
 };
 
 // ---------- tuning constants ----------
@@ -67,6 +67,7 @@ const CFG={
   isleWNm:1.5,                  // boat view: island silhouette half-width, nm
   isleH:9,                      // boat view: island silhouette max height above the horizon, px
   driftMax:0.12,                // blind passage: max current, fraction of boat speed (C3: forgiving)
+  dayWash:0.5,                  // boat view: max daytime sky-wash alpha
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -576,6 +577,28 @@ function drawBoatView(cn,refDeg,cur){
   const hy=Math.max(H*0.5,H-CFG.horizonUp)+pitch*pxDeg;
   ctx.lineWidth=1;
 
+  // ---- the sun: day, twilight, and star visibility derive from its altitude ----
+  const jd=voyageMs()/86400000+2440587.5;
+  const lst=(gmst(jd)+cn.lon)%360;
+  const su=sunPos(jd), ps=altAz(su.ra,su.dec,cn.lat,lst);
+  const dayF=clamp((ps.alt+6)/12,0,1);          // 0 below civil twilight, 1 by mid-morning
+  const dayA=dayF*CFG.dayWash;
+  const starVis=clamp((-ps.alt-1)/7,0,1);       // stars full below alt -8, gone by -1
+  const duskA=Math.exp(-Math.pow((ps.alt+1.5)/7,2));   // warm band just under the horizon
+
+  // day wash over the sky (half strength over the sea), then the twilight glow
+  // anchored at the sun's true azimuth — dawn breaks in the east
+  if(dayA>0.002){
+    ctx.fillStyle=hexA(PAL.day,dayA);ctx.fillRect(0,0,W,hy);
+    ctx.fillStyle=hexA(PAL.day,dayA*0.4);ctx.fillRect(0,hy,W,H-hy);
+  }
+  if(duskA>0.01&&inView(relAz(ps.az))){
+    const sx=azX(ps.az);
+    const g=ctx.createRadialGradient(sx,hy,0,sx,hy,W*0.45);
+    g.addColorStop(0,hexA(PAL.dawn,0.5*duskA));g.addColorStop(1,hexA(PAL.dawn,0));
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  }
+
   // polar sea grid: a line from each house's horizon point, converging on a
   // vanishing point at bottom center (just off-screen, so they never quite meet)
   const seaG=ctx.createLinearGradient(0,hy,0,H);
@@ -616,17 +639,17 @@ function drawBoatView(cn,refDeg,cur){
   // the real sky, turning with sailing time. Atmospheric extinction dims stars
   // toward the sea line by airmass; k=0.075 mag/airmass is gentler than the
   // physical ~0.25 so the low sky stays alive.
-  const lst=(gmst(voyageMs()/86400000+2440587.5)+cn.lon)%360;
   const dimAt=alt=>Math.pow(10,-0.03*(1/Math.sin(Math.max(alt,1.5)*Math.PI/180)-1));
 
   // milky way: a soft glow along the galactic equator under a scatter of dust,
   // clipped to the sky so the band can run right down to the sea line
+  if(starVis>0.02){
   ctx.save();ctx.beginPath();ctx.rect(0,14,W,hy-14);ctx.clip();
   for(const [ra,dec,ints] of MILKY.glow){
     const p=altAz(ra,dec,cn.lat,lst);
     if(p.alt<-6||Math.abs(relAz(p.az))>CFG.fov/2+16)continue;
     const x=azX(p.az), y=hy-p.alt*pxDeg, r=13*pxDeg;
-    const a=0.07*ints*dimAt(Math.max(p.alt,3));
+    const a=0.07*ints*dimAt(Math.max(p.alt,3))*starVis;
     const g=ctx.createRadialGradient(x,y,0,x,y,r);
     g.addColorStop(0,hexA(PAL.starlight,a));g.addColorStop(1,hexA(PAL.starlight,0));
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
@@ -634,24 +657,27 @@ function drawBoatView(cn,refDeg,cur){
   for(const [ra,dec,r0,a0] of MILKY.dust){
     const p=altAz(ra,dec,cn.lat,lst);
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
-    const a=a0*dimAt(p.alt);if(a<0.015)continue;
+    const a=a0*dimAt(p.alt)*starVis;if(a<0.015)continue;
     ctx.fillStyle=hexA(PAL.starlight,a);
     ctx.beginPath();ctx.arc(azX(p.az),hy-p.alt*pxDeg,r0,0,7);ctx.fill();
   }
   ctx.restore();
+  }
 
   const curBase=cur>=0?starBaseName(ETAK_COMPASS[cur].star):null;
-  for(const [ra,dec,mag] of STAR_MAP.field){
+  if(starVis>0.02)for(const [ra,dec,mag] of STAR_MAP.field){
     const p=altAz(ra,dec,cn.lat,lst);
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
     const y=hy-p.alt*pxDeg;if(y<14)continue;
-    const dim=dimAt(p.alt), a=Math.max(0.2,0.85-0.1*mag)*dim;
+    const dim=dimAt(p.alt), a=Math.max(0.2,0.85-0.1*mag)*dim*starVis;
     if(a<0.03)continue;
     ctx.fillStyle=hexA(PAL.starlight,a);
     ctx.beginPath();ctx.arc(azX(p.az),y,Math.max(0.55,2.7-0.33*mag)*(0.5+0.5*dim),0,7);ctx.fill();
   }
   ctx.font='9px "IBM Plex Mono",monospace';ctx.textAlign='left';
   starHits.length=0;
+  if(starVis>0.05){                    // by day there is no star to steer by, or to click
+  ctx.save();ctx.globalAlpha=starVis;
   for(const s of STAR_MAP.compass){
     const p=altAz(s.ra,s.dec,cn.lat,lst);
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
@@ -664,30 +690,30 @@ function drawBoatView(cn,refDeg,cur){
       ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.stroke();}
     if(s.lbl){ctx.fillStyle=hot?PAL.amber:hexA(PAL.dim,0.6);ctx.fillText(s.car||s.name,x+7,y+3);}
   }
+  ctx.restore();
+  }
 
   // wanderers: the five naked-eye planets as bright labeled dots, then the Moon
   // with its true phase (bright limb facing the sun's sky position)
-  const jd=voyageMs()/86400000+2440587.5;
-  for(const name of PLANETS){
+  if(starVis>0.02)for(const name of PLANETS){
     const pl=planetPos(name,jd), p=altAz(pl.ra,pl.dec,cn.lat,lst);
     if(p.alt<-0.5||!inView(relAz(p.az)))continue;
     const y=hy-p.alt*pxDeg;if(y<14)continue;
-    const dim=dimAt(p.alt), a=Math.min(1,0.85-0.1*pl.mag)*dim;
+    const dim=dimAt(p.alt), a=Math.min(1,0.85-0.1*pl.mag)*dim*starVis;
     if(a<0.04)continue;
     const x=azX(p.az);
     ctx.fillStyle=hexA(PAL.starlight,a);
     ctx.beginPath();ctx.arc(x,y,Math.max(0.8,2.7-0.33*pl.mag)*(0.5+0.5*dim),0,7);ctx.fill();
-    ctx.fillStyle=hexA(PAL.dim,0.15+0.5*dim);ctx.fillText(name,x+7,y+3);
+    ctx.fillStyle=hexA(PAL.dim,(0.15+0.5*dim)*starVis);ctx.fillText(name,x+7,y+3);
   }
   const mo=moonPos(jd), pm=altAz(mo.ra,mo.dec,cn.lat,lst);
   if(pm.alt>-0.5&&inView(relAz(pm.az))){
     const x=azX(pm.az), y=hy-pm.alt*pxDeg;
     if(y>=14){
       const Rm=Math.max(4,0.3*pxDeg);                 // true disc is ~0.26° — a touch of looming
-      const su=sunPos(jd), ps=altAz(su.ra,su.dec,cn.lat,lst);
       const th=Math.atan2((hy-ps.alt*pxDeg)-y,azX(ps.az)-x);
-      const dim=0.35+0.65*dimAt(pm.alt);              // the moon survives low altitude
-      ctx.fillStyle=hexA(PAL.starlight,0.08*dim);     // earthshine night side
+      const dim=(0.35+0.65*dimAt(pm.alt))*(1-0.5*dayF);   // the moon survives, paler by day
+      ctx.fillStyle=hexA(PAL.starlight,0.08*dim*(1-dayF));// earthshine drowns in daylight
       ctx.beginPath();ctx.arc(x,y,Rm,0,7);ctx.fill();
       const k=2*mo.phase-1;                           // -1 new .. +1 full
       ctx.fillStyle=hexA(PAL.starlight,0.85*dim);
@@ -695,6 +721,18 @@ function drawBoatView(cn,refDeg,cur){
       ctx.arc(x,y,Rm,th-Math.PI/2,th+Math.PI/2);      // sunward semicircle of the limb
       ctx.ellipse(x,y,Rm*Math.abs(k),Rm,th,Math.PI/2,3*Math.PI/2,k<0);  // terminator
       ctx.fill();
+    }
+  }
+
+  // the sun itself: a bright disc once it clears the sea line
+  if(ps.alt>-1&&inView(relAz(ps.az))){
+    const x=azX(ps.az), y=hy-ps.alt*pxDeg;
+    if(y>=14){
+      const Rs=Math.max(4,0.3*pxDeg);
+      const g=ctx.createRadialGradient(x,y,Rs*0.5,x,y,Rs*5);
+      g.addColorStop(0,hexA(PAL.starlight,0.9));g.addColorStop(1,hexA(PAL.starlight,0));
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,Rs*5,0,7);ctx.fill();
+      ctx.fillStyle=PAL.starlight;ctx.beginPath();ctx.arc(x,y,Rs,0,7);ctx.fill();
     }
   }
 

@@ -78,17 +78,14 @@ is one multiple-choice guess, and the boat view (the whole point) carries no gam
 
 ## Deeper sky
 
-- [ ] **Day and night** — the boat view is permanently at night. Sailing time already advances
-      the sky (`t · legNm / CFG.canoeKn` hours from `CFG.depart`), so the sun is computable from
-      the same `EtakCore.altAz` machinery the stars use: solar position, sunrise/sunset,
-      twilight bands, a daytime sky gradient, stars fading out through civil twilight.
-      This is a **gameplay** fact, not just a visual one — by day the star compass is
-      unavailable and the navigator holds course by sun and swell, which is the real
-      technique and the natural source of accumulated drift. Sailing time and wall time must
-      decouple explicitly — real legs run days, a playable leg runs minutes — but the rate is
-      **player-controlled, not a constant**: see the *watch* mechanic in `docs/design.md` §8
-      (keep watch = real time and tight steering; rest = fast time and uncorrected drift).
-      Day/night is what gives that choice its rhythm, since the star compass is only up at night.
+- [x] **Day and night (visuals + truth)** — the real sun in the boat view from the tested
+      `sunPos` ephemeris: day wash, a twilight glow anchored at the sun's true azimuth (dawn
+      breaks in the east — a genuine compass hint), stars/milky way/planets fading through
+      civil twilight, the sun disc itself, the moon paling by day. By day there is now no star
+      to steer by or click; house ticks and carets (instrument UI) stay. **Still open:** the
+      gameplay coupling — the *watch* mechanic (`docs/design.md` §8: keep watch = real time
+      and tight steering; rest = fast time and uncorrected drift), whose rhythm this enables,
+      since the star compass is only up at night.
 - [ ] **Hipparcos/HYG star field** — Yale BSC tops out at ~9,100 stars; HYG carries ~120k
       (enough for 15k+ field stars) and has an `hr` column, so the compass-star mapping in
       `tools/build_stars.py` carries over
