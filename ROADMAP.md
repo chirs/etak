@@ -39,9 +39,13 @@ is one multiple-choice guess, and the boat view (the whole point) carries no gam
       Still open from the original sketch: the *how far to landfall?* question variant, and any
       cost to attention (no drift yet, so watching the caret answers the question — see the watch
       mechanic and *steer by the stars* below).
-- [ ] **Landfall as the win condition** — the player calls *etak of birds* when they believe
-      they've entered the destination's ~18 mi ring; land shows on the boat-view horizon only
-      once truly inside sighting range — the range rings become the payoff
+- [x] **Landfall as the win condition (v1)** — during a blind leg a single CALL · ETAK OF BIRDS
+      button declares "we are inside the ring"; the landfall card scores the call in etaks
+      (early/dead on/late/never called). Any real island within `CFG.sightNm` now rises as a
+      silhouette on the boat-view horizon at its true azimuth — in all boat-view use, so calling
+      only once you *see* land is possible but self-penalizing. No birds rendered (deliberate:
+      without drift they'd trivialize the call); the §6 search-the-expanded-target texture for a
+      missed call is still open.
 - [ ] **The apprenticeship** — wrap the passages in a progression with escalating blindness
       (chart → glances → boat-only), ending in a *pwo*-style title
 - [ ] **Progress persistence** — localStorage record of passages done per blindness level

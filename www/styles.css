@@ -158,6 +158,17 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
 .newbtn.hidden{opacity:0;pointer-events:none}
 .newbtn:focus-visible{outline:2px solid var(--amber)}
 
+/* blind passage: the etak-of-birds call */
+.birdsbtn{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:5;appearance:none;
+  border:1px solid var(--amber);background:var(--panel);color:var(--amber);
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;
+  padding:10px 20px;border-radius:8px;cursor:pointer;
+  transition:border-color .2s,color .2s,opacity .3s}
+.birdsbtn:hover{background:#1a273a}
+.birdsbtn:focus-visible{outline:2px solid var(--amber)}
+.birdsbtn.hidden{opacity:0;pointer-events:none}
+.birdsbtn.called{border-color:var(--line);color:var(--dim);pointer-events:none}
+
 @media (max-width:900px){
   .sub{max-width:38ch}
   .score{top:auto;bottom:130px;width:160px}

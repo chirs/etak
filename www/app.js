@@ -62,6 +62,9 @@ const CFG={
   swellAmp:7,                   // boat view: swell undulation at the bow, px (fades aft of the horizon)
   swellAlpha:0.16,              // boat view: swell line alpha at the bow
   blindQs:2,                    // blind passage: navigator questions per voyage
+  sightNm:10,                   // boat view: land rises over the horizon within this range
+  isleWNm:1.5,                  // boat view: island silhouette half-width, nm
+  isleH:9,                      // boat view: island silhouette max height above the horizon, px
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -680,6 +683,29 @@ function drawBoatView(cn,refDeg,cur){
     }
   }
 
+  // land: any real island inside sighting range rises as a dark silhouette at
+  // its true azimuth — palm tops over the curve, occluding the stars. True
+  // angular width from the distance; fades in over the outer edge of range.
+  for(const isl of Object.values(ETAK_ISLANDS)){
+    const d=gcDistNm(cn,isl);
+    if(d>CFG.sightNm||d<0.3)continue;              // beyond sight, or standing on it
+    const az=gcBearing(cn,isl);
+    if(!inView(relAz(az)))continue;
+    const x=azX(az), near=1-d/CFG.sightNm;
+    const hw=Math.min(Math.atan2(CFG.isleWNm,d)*180/Math.PI*pxDeg, 14*pxDeg);
+    const h=2+CFG.isleH*near;
+    ctx.save();ctx.globalAlpha=Math.min(1,near*4);
+    ctx.beginPath();
+    ctx.moveTo(x-hw,hy+1);
+    ctx.quadraticCurveTo(x-hw*0.5,hy-h,x-hw*0.15,hy-h);
+    ctx.lineTo(x+hw*0.15,hy-h);
+    ctx.quadraticCurveTo(x+hw*0.5,hy-h,x+hw,hy+1);
+    ctx.fillStyle=PAL.land;ctx.fill();             // fill auto-closes along the sea line
+    ctx.strokeStyle=hexA(PAL.coast,0.9);ctx.lineWidth=1;
+    ctx.stroke();                                  // open path: strokes the top edge only
+    ctx.restore();
+  }
+
   // house ticks + boundary separators + names (same semantics as the rose)
   ctx.font='9.5px "IBM Plex Mono",monospace';
   for(let i=0;i<32;i++){
@@ -1054,6 +1080,13 @@ const blindEra=document.getElementById('blindEra'),blindTitle=document.getElemen
 const blindText=document.getElementById('blindText'),blindAnswers=document.getElementById('blindAnswers');
 const blindChrome=[framesEl,document.querySelector('.bar'),document.querySelector('.modeswitch'),
                    readoutEl,chooserEl,newBtn,document.getElementById('storyBtn')];
+const birdsBtn=document.getElementById('birdsBtn');
+birdsBtn.addEventListener('click',()=>{
+  if(!blind||blind.call)return;
+  blind.call={t};
+  birdsBtn.classList.add('called');
+  birdsBtn.textContent=`called · etak ${etakAt(boundaries,t)}`;
+});
 
 function setArming(on){
   arming=on;
@@ -1075,8 +1108,12 @@ function startBlind(i){
   C={lat:cd.lat,lon:cd.lon,name:cd.name};
   recompute();
   const span=0.75/CFG.blindQs;   // questions jitter-spread over t in [0.15, 0.9]
-  blind={idx:i,qi:0,marks:[],
+  blind={idx:i,qi:0,marks:[],call:null,
+         tBirds:Math.max(0,1-CFG.birdsNm/legNm),   // ring entry: exact under uniform speed
          qs:Array.from({length:CFG.blindQs},(_,k)=>0.15+span*(k+0.5+(Math.random()-0.5)*0.6))};
+  birdsBtn.classList.remove('hidden','called');
+  birdsBtn.textContent='CALL · ETAK OF BIRDS';
+  blindCard.classList.add('hidden');
   hideStarCard();
   blindChrome.forEach(el=>el.classList.add('hidden'));
   departWrap.classList.add('hidden');
@@ -1099,19 +1136,30 @@ function askBlind(){
   blindCard.classList.remove('hidden');
 }
 function blindLandfall(){
+  birdsBtn.classList.add('hidden');
   blindEra.textContent='landfall';
   blindTitle.textContent=B.name;
-  const calls=blind.marks.map(m=>{
+  const asks=blind.marks.map(m=>{
     const off=Math.abs(m.guess-m.truth);
     return `Asked in etak ${m.truth}, you said ${m.guess} — `+
            (off===0?'dead on.':off===1?'off by one etak.':`off by ${off} etaks.`);
   });
-  blindText.textContent=calls.join(' ')+' '+verdictText(live);
+  const eb=etakAt(boundaries,blind.tBirds);
+  let call;
+  if(!blind.call)call='The island rose unannounced — you never called the birds.';
+  else{
+    const ec=etakAt(boundaries,blind.call.t), d=eb-ec;
+    call=d===0?`You called the birds in etak ${ec} — dead on.`:
+         d>0?`You called the birds in etak ${ec}; they begin in etak ${eb} — ${d} etak${d>1?'s':''} early.`:
+              `You called the birds in etak ${ec}; they had been with you since etak ${eb} — ${-d} etak${d<-1?'s':''} late.`;
+  }
+  blindText.textContent=[...asks,call,verdictText(live)].join(' ');
   blindButtons(['RETURN TO THE CHART ⟶'],endBlind);
   blindCard.classList.remove('hidden');
 }
 function endBlind(){
   const idx=blind.idx;blind=null;
+  birdsBtn.classList.add('hidden');
   blindCard.classList.add('hidden');
   blindChrome.forEach(el=>el.classList.remove('hidden'));
   goAshore(0);frameActive(document.getElementById('fChart'));
