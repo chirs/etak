@@ -170,6 +170,22 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
 .birdsbtn.hidden{opacity:0;pointer-events:none}
 .birdsbtn.called{border-color:var(--line);color:var(--dim);pointer-events:none}
 
+/* ---- helm mode: the boat alone ----
+   The stripped first view (HELM in app.js): the boat horizon, and of the chrome only
+   the transport controls — play and speed. Everything below is display:none rather
+   than removed, so every panel is still in the DOM and every handler still fires;
+   dropping `helm` off <body> brings the whole interface back unchanged. */
+body.helm header,
+body.helm .modeswitch,
+body.helm .frames,
+body.helm .chooser,
+body.helm .readout,
+body.helm .newbtn,
+body.helm .birdsbtn,
+body.helm .departwrap,
+body.helm .scrubwrap{display:none}
+body.helm .speedwrap{margin-left:auto}   /* with the scrubber gone, speed keeps the right edge */
+
 @media (max-width:900px){
   .sub{max-width:38ch}
   .score{top:auto;bottom:130px;width:160px}

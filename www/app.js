@@ -10,6 +10,15 @@ const ctx = canvas.getContext('2d');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 
+// ---------- helm mode ----------
+// The stripped-down first view: boot straight into the boat with the story skipped
+// and the chrome suppressed, leaving only play and speed. Nothing is removed —
+// puzzle, sandbox, settlement, the chart and navigator frames, the blind passage and
+// every panel below all still exist and still work; `enterHelm` only hides them (see
+// `body.helm` in styles.css) and starts in the boat instead of on the chart. Set this
+// to false to get the full interface back, unchanged.
+const HELM = true;
+
 // ---------- palette (single source of truth: the :root custom properties) ----------
 const cssVars = getComputedStyle(document.documentElement);
 const cv = n => cssVars.getPropertyValue(n).trim();
@@ -983,6 +992,19 @@ addEventListener('keydown',e=>{
 });
 function frameActive(btn){document.querySelectorAll('.frames button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
 
+// Boot into the boat with the chrome hidden (see HELM at the top). It sets exactly the
+// state the BOAT button sets, so the frame machinery is untouched — plus b=1 to land
+// there outright rather than crossfading up from a chart nobody sees, and play, since
+// the sun and stars only turn while the voyage runs.
+function enterHelm(){
+  document.body.classList.add('helm');
+  document.title='Etak';
+  bTarget=1;b=1;look=0;pitch=0;
+  frameActive(document.getElementById('fBoat'));
+  frameHint.textContent='drag the sea to look around';
+  setPlaying(!reduceMotion);
+}
+
 const mPuzzle=document.getElementById('mPuzzle'),mSandbox=document.getElementById('mSandbox');
 const mSettle=document.getElementById('mSettle');
 const newBtn=document.getElementById('newBtn'),subEl=document.getElementById('sub');
@@ -1348,6 +1370,7 @@ function loop(now){
 }
 resize();
 setMode('puzzle');
-if(!storySeen())startStory();
+if(HELM)enterHelm();
+else if(!storySeen())startStory();
 requestAnimationFrame(loop);
 })();
