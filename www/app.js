@@ -80,6 +80,11 @@ const CFG={
   miniR:78,                     // helm minimap: disc radius, screen px
   miniPad:24,                   // helm minimap: inset from the top-right corner, screen px
   miniFit:0.66,                 // helm minimap: leg framed into this fraction of the diameter
+  helmSkyRate:0.75,             // helm: sky hours per real second at speed 1 — leg-length independent,
+                                // so Puluwat->Chuuk still runs ~33s and a migration leg takes longer
+  portHitR:16,                  // helm picker: island click hit radius, screen px
+  portZoom:22,                  // helm picker: zoom (px/deg) above which the Caroline cluster labels
+  portFit:0.55,                 // helm picker: the Carolines framed into this fraction on open
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -105,6 +110,7 @@ function resize(){
   cam.zoom=clamp(cam.zoom,MINZOOM,CFG.maxZoom);
   if(story) camTarget=fitPoints(ETAK_STORY[story.beat].fit.map(project),CFG.storyFitFrac);
   else if(mode==='settlement') camTarget=fitPoints(ETAK_STORY[settle.beat].fit.map(project),CFG.storyFitFrac);
+  else if(HELM&&helmPhase==='select') camTarget=fitPorts();
   else if(A&&B) fitLeg();
 }
 addEventListener('resize',resize);
@@ -339,10 +345,15 @@ function drawCoast(v){
 // Bearings are measured from north clockwise; east-up puts north at screen (-1,0)
 // and east at (0,-1), so a bearing θ points along screen angle θ+π.
 const miniAngle=deg=>deg*Math.PI/180+Math.PI;
+// disc geometry in one place, so the hit test and the drawing cannot drift apart
+const miniDisc=()=>{
+  const R=Math.min(CFG.miniR,W*0.2,H*0.2);   // never let the disc dominate a small viewport
+  return {R,mx:W-CFG.miniPad-R,my:CFG.miniPad+R};
+};
+const overMiniMap=(x,y)=>{const d=miniDisc();return Math.hypot(x-d.mx,y-d.my)<=d.R;};
 function drawMiniMap(cn){
   if(!A||!B)return;
-  const R=Math.min(CFG.miniR,W*0.2,H*0.2);   // never let the disc dominate a small viewport
-  const mx=W-CFG.miniPad-R, my=CFG.miniPad+R;
+  const {R,mx,my}=miniDisc();
   const pts=[project(A),project(B),project(cn)];
   if(C)pts.push(project(C));
   const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
@@ -385,7 +396,7 @@ function drawMiniMap(cn){
   const gaze=gcBearing(cn,B)+look;
   const g0=miniAngle(gaze-CFG.fov/2),g1=miniAngle(gaze+CFG.fov/2);
   const gr=ctx.createRadialGradient(sP.x,sP.y,0,sP.x,sP.y,R*0.85);
-  gr.addColorStop(0,hexA(PAL.starlight,0.22));gr.addColorStop(1,hexA(PAL.starlight,0));
+  gr.addColorStop(0,hexA(PAL.starlight,0.12));gr.addColorStop(1,hexA(PAL.starlight,0));
   ctx.fillStyle=gr;
   ctx.beginPath();ctx.moveTo(sP.x,sP.y);ctx.arc(sP.x,sP.y,R*0.85,g0,g1);ctx.closePath();ctx.fill();
 
@@ -405,6 +416,118 @@ function drawMiniMap(cn){
   ctx.fillStyle=PAL.dim;ctx.font='9px "IBM Plex Mono",monospace';
   ctx.fillText('N',mx-R+9,my+3);
   ctx.restore();
+}
+
+// ---------- helm voyage picker ----------
+// The screen before the boat: a chart you pick a leg on. Opens framed on the
+// Carolines and zooms out to the settlement landfalls, so the same map carries both
+// scales — a half-day inter-island run and a three-week migration crossing.
+// The two gazetteers overlap on four names (Puluwat, Lamotrek, Chuuk, Saipan);
+// ETAK_ISLANDS wins those, its coordinates being the navigation ones.
+const HELM_PORTS=(()=>{
+  const out=[],seen=new Set();
+  for(const k in ETAK_ISLANDS){const i=ETAK_ISLANDS[k];
+    seen.add(i.name);out.push({name:i.name,lat:i.lat,lon:i.lon,near:true});}
+  for(const k in ETAK_PLACES){const p=ETAK_PLACES[k];
+    if(!seen.has(p.name))out.push({name:p.name,lat:p.lat,lon:p.lon,near:false});}
+  return out;
+})();
+let helmPhase='select';    // 'select' = the picker chart, 'sail' = the boat
+let pickFrom=null;         // first island clicked, awaiting a destination
+let pickHover=null;        // port under the pointer, for the preview leg
+
+function hitPort(sx,sy){
+  const v=viewParams();let best=null,bd=CFG.portHitR;
+  for(const p of HELM_PORTS){
+    const s=worldToScreen(project(p),v);
+    const d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best=p;}
+  }
+  return best;
+}
+
+function drawPickerPrompt(){
+  ctx.textAlign='center';
+  const mid=W/2;
+  ctx.font='15px Marcellus,serif';ctx.fillStyle=PAL.starlight;
+  ctx.fillText(pickFrom?`SAILING FROM ${pickFrom.name}`:'CHOOSE A VOYAGE',mid,54);
+  ctx.font='11px "IBM Plex Mono",monospace';ctx.fillStyle=PAL.faint;
+  ctx.fillText(pickFrom?'now click where you are sailing to':'click the island you are sailing from',mid,76);
+  // a live leg summary while a destination is under the pointer
+  if(pickFrom&&pickHover&&pickHover!==pickFrom){
+    const nm=gcDistNm(pickFrom,pickHover), hrs=nm/CFG.canoeKn;
+    const dur=hrs<48?`${Math.round(hrs)} h`:`${(hrs/24).toFixed(1)} days`;
+    ctx.font='12px "IBM Plex Mono",monospace';ctx.fillStyle=PAL.amber;
+    ctx.fillText(`${pickFrom.name} → ${pickHover.name} · ${Math.round(nm)} nm · ${dur}`,mid,102);
+  }
+  ctx.font='10px "IBM Plex Mono",monospace';ctx.fillStyle=PAL.dim;
+  ctx.fillText('scroll to zoom out for the wider ocean',mid,H-26);
+}
+
+function drawHelmPicker(v){
+  const showNear=v.Z>=CFG.portZoom;     // the Carolines collide at whole-ocean zoom
+  ctx.textAlign='left';
+  for(const p of HELM_PORTS){
+    if(p===pickFrom)continue;                       // drawn hot below, above the leg line
+    const s=worldToScreen(project(p),v);
+    if(s.x<-60||s.x>W+60||s.y<-60||s.y>H+60)continue;
+    const hov=p===pickHover;
+    const r=p.near?(showNear?3.5:2):4;
+    drawMarker(s,hov?PAL.amber:PAL.island,hov?hexA(PAL.amber,0.5):null,hov?r+1.5:r);
+    if(showNear||!p.near){
+      ctx.font='10px "IBM Plex Mono",monospace';
+      ctx.fillStyle=hov?PAL.starlight:hexA(PAL.dim,0.85);
+      ctx.fillText(p.name,s.x+8,s.y+3);
+    }
+  }
+  if(pickFrom){
+    const sF=worldToScreen(project(pickFrom),v);
+    if(pickHover&&pickHover!==pickFrom){
+      const sH=worldToScreen(project(pickHover),v);
+      ctx.strokeStyle=hexA(PAL.amber,0.5);ctx.lineWidth=1.5;ctx.setLineDash([5,6]);
+      ctx.beginPath();ctx.moveTo(sF.x,sF.y);ctx.lineTo(sH.x,sH.y);ctx.stroke();ctx.setLineDash([]);
+    }
+    drawMarker(sF,PAL.amber,hexA(PAL.amber,0.55),5);
+    ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='left';
+    ctx.fillStyle=PAL.starlight;ctx.fillText(pickFrom.name,sF.x+9,sF.y+3);
+  }
+  drawPickerPrompt();
+}
+
+// Opening frame: bounding-box zoom so every Caroline island is on screen, but
+// centred on the centroid rather than the box. Saipan sits 8° north of the rest of
+// the chain, and centring the box lets that one outlier shove the dense cluster —
+// the islands you actually pick between — into a corner.
+function fitPorts(){
+  const pts=HELM_PORTS.filter(p=>p.near).map(project);
+  const {zoom}=fitPoints(pts,CFG.portFit);
+  return {zoom,
+    cx:pts.reduce((s,p)=>s+p.x,0)/pts.length,
+    cy:pts.reduce((s,p)=>s+p.y,0)/pts.length};
+}
+
+// open the picker: no voyage running, the chart up, framed on the Carolines
+function enterHelmPicker(){
+  helmPhase='select';pickFrom=null;pickHover=null;
+  document.body.classList.add('picking');
+  setPlaying(false);hideStarCard();
+  fTarget=0;bTarget=0;
+  camTarget=fitPorts();
+}
+
+// commit the leg and dissolve into the boat — b eases rather than cutting, so the
+// chart you just picked on fades into the horizon you picked it for
+function startHelmVoyage(from,to){
+  A={...from};B={...to};C=null;
+  lastWake=null;
+  recompute();
+  t=0;afterHours=0;scrub.value=0;
+  helmPhase='sail';pickFrom=null;pickHover=null;
+  document.body.classList.remove('picking');
+  bTarget=1;look=0;pitch=0;
+  camTarget=null;fitLeg();
+  canvas.style.cursor='';
+  setPlaying(!reduceMotion);
 }
 
 // "etak of birds" range rings around home + destination (seabird feeding range)
@@ -869,7 +992,10 @@ function drawBoatView(cn,refDeg,cur){
     ctx.moveTo(x,hy+3);ctx.lineTo(x-5,hy+11);ctx.lineTo(x+5,hy+11);ctx.closePath();ctx.fill();};
   const name=(x,y,txt,color)=>{ctx.fillStyle=color;ctx.textAlign='center';ctx.fillText(txt,x,y);};
   ctx.font='10px "IBM Plex Mono",monospace';
-  if(mode==='puzzle'&&puzzle){
+  // Helm picks its own leg, so the passage's candidate references are stale there —
+  // without this guard the Caroline atolls caret onto the horizon while you sail
+  // somewhere else entirely, having never been chosen or even shown.
+  if(!HELM&&mode==='puzzle'&&puzzle){
     puzzle.candidates.forEach((cd,i)=>{
       if(i===(blind?blind.idx:puzzle.chosenIndex))return;
       const az=gcBearing(cn,cd);if(!inView(relAz(az)))return;
@@ -930,6 +1056,9 @@ function draw(){
       drawTimeline(v);
       ctx.restore();
       drawPlaces(v);
+    }else if(HELM&&helmPhase==='select'){   // the picker: bare coastlines and the ports
+      ctx.restore();
+      drawHelmPicker(v);
     }else{
       drawRangeRings(v);
       drawCourse(v,Aw,Bw);
@@ -1081,10 +1210,9 @@ function frameActive(btn){document.querySelectorAll('.frames button').forEach(b=
 function enterHelm(){
   document.body.classList.add('helm');
   document.title='Etak';
-  bTarget=1;b=1;look=0;pitch=0;
   frameActive(document.getElementById('fBoat'));
   frameHint.textContent='drag the sea to look around';
-  setPlaying(!reduceMotion);
+  enterHelmPicker();     // the picker first; sailing starts when a leg is chosen
 }
 
 const mPuzzle=document.getElementById('mPuzzle'),mSandbox=document.getElementById('mSandbox');
@@ -1392,13 +1520,29 @@ canvas.addEventListener('pointermove',e=>{
     cam.cx+=a.x-b.x;cam.cy+=a.y-b.y;lastX=e.clientX;lastY=e.clientY;
     camTarget=null;                    // the hand interrupts any camera flight
   }
+  if(HELM&&helmPhase==='select'&&!dragMode){        // picker: highlight the port under the pointer
+    pickHover=hitPort(e.clientX,e.clientY);
+    canvas.style.cursor=pickHover?'pointer':'';
+  }
 });
 canvas.addEventListener('pointerup',e=>{
   // aboard: a still click (not a gaze drag) picks the nearest compass star → its card
   if(dragMode==='gaze'&&Math.hypot(e.clientX-downX,e.clientY-downY)<4){
+    // the minimap is the chart in miniature, so clicking it opens the full one —
+    // the way back to the picker without putting another button on screen
+    if(HELM&&helmPhase==='sail'&&overMiniMap(e.clientX,e.clientY)){
+      enterHelmPicker();dragMode=null;return;
+    }
     let best=null,bd=CFG.starHitR;
     for(const h of starHits){const d=Math.hypot(h.x-e.clientX,h.y-e.clientY);if(d<bd){bd=d;best=h;}}
     best?showStarCard(best):hideStarCard();
+  }
+  // picker: a still click on an island sets home, then destination and sails
+  if(HELM&&helmPhase==='select'&&dragMode==='pan'&&Math.hypot(e.clientX-downX,e.clientY-downY)<4){
+    const hit=hitPort(e.clientX,e.clientY);
+    if(!hit)pickFrom=null;                       // empty sea clears the pick
+    else if(!pickFrom)pickFrom=hit;
+    else if(hit!==pickFrom)startHelmVoyage(pickFrom,hit);
   }
   // settlement: a still click (not a pan) hits a reached place → its card; empty sea → era card
   if(mode==='settlement'&&dragMode==='pan'&&Math.hypot(e.clientX-downX,e.clientY-downY)<4){
@@ -1427,7 +1571,11 @@ let last=performance.now();
 function loop(now){
   const dt=Math.min((now-last)/1000,0.05);last=now;
   if(playing){
-    t+=dt*CFG.playRate*speedMul;
+    // Helm runs on sky time, not voyage fraction: the sun and stars turn at a fixed
+    // rate and a longer leg simply takes longer, instead of whipping the sky round
+    // faster to finish in the same 33 seconds. Elsewhere the leg is the clock.
+    if(HELM&&legHours)t+=dt*CFG.helmSkyRate*speedMul/legHours;
+    else t+=dt*CFG.playRate*speedMul;
     if(t>=1){
       const over=t-1;   // the slice of this frame that falls past landfall
       t=1;

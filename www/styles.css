@@ -185,6 +185,7 @@ body.helm .birdsbtn,
 body.helm .departwrap,
 body.helm .scrubwrap{display:none}
 body.helm .speedwrap{margin-left:auto}   /* with the scrubber gone, speed keeps the right edge */
+body.helm.picking .bar{display:none}     /* nothing to play or pace until a leg is chosen */
 
 @media (max-width:900px){
   .sub{max-width:38ch}
