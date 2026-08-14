@@ -120,6 +120,31 @@ const unproject = w => ({ lat:-w.y, lon:lon360(w.x) });
 let W=0,H=0,DPR=1;
 const B0=PACIFIC_MAP.bounds;
 let MINZOOM=1;                             // screen px per world degree; max is CFG.maxZoom
+// The chart's own floor is a *cover* fit: zooming out stops once the map fills the
+// viewport. East-up maps longitude to screen height, and the pick list spans 130° of
+// it, so that floor leaves the eastern landfalls — Tahiti, Hawaii, the Marquesas,
+// Rapa Nui — off the top with no way to reach them. The picker, and only the picker,
+// may zoom out far enough to hold every port at once.
+function portBox(){
+  const pts=HELM_PORTS.map(project), xs=pts.map(q=>q.x), ys=pts.map(q=>q.y);
+  return {x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)};
+}
+function minZoomNow(){
+  if(!(HELM&&helmPhase==='select'))return MINZOOM;
+  const b=portBox();
+  // the x margin is the generous one: it buys room under the prompt at the top
+  return Math.min(MINZOOM, H/((b.x1-b.x0)*1.35), W/((b.y1-b.y0)*1.12));
+}
+// Keep the picker's camera over the gazetteer: once every port fits, centre them —
+// otherwise zooming out past the Carolines just leaves the far landfalls off the top
+// — and short of that, stop panning at the edge of the pick list rather than drifting
+// into blank ocean. East-up, so world x spans the screen height and y its width.
+function clampPickerCam(){
+  if(!(HELM&&helmPhase==='select'))return;
+  const b=portBox(), hx=H/(2*cam.zoom), hy2=W/(2*cam.zoom);
+  cam.cx=(b.x1-b.x0)<2*hx?(b.x0+b.x1)/2:clamp(cam.cx,b.x0+hx,b.x1-hx);
+  cam.cy=(b.y1-b.y0)<2*hy2?(b.y0+b.y1)/2:clamp(cam.cy,b.y0+hy2,b.y1-hy2);
+}
 const cam={cx:(B0.lonMin+B0.lonMax)/2, cy:-(B0.latMin+B0.latMax)/2, zoom:2};
 
 function resize(){
@@ -129,7 +154,7 @@ function resize(){
   // east-up rotation maps world lon-extent to screen height, lat-extent to width;
   // cover (max), not contain: zoom-out stops once the chart fills the viewport
   MINZOOM=Math.max(H/(B0.lonMax-B0.lonMin), W/(B0.latMax-B0.latMin));
-  cam.zoom=clamp(cam.zoom,MINZOOM,CFG.maxZoom);
+  cam.zoom=clamp(cam.zoom,minZoomNow(),CFG.maxZoom);
   if(story) camTarget=fitPoints(ETAK_STORY[story.beat].fit.map(project),CFG.storyFitFrac);
   else if(mode==='settlement') camTarget=fitPoints(ETAK_STORY[settle.beat].fit.map(project),CFG.storyFitFrac);
   else if(HELM&&helmPhase==='select') camTarget=fitPorts();
@@ -1626,6 +1651,7 @@ canvas.addEventListener('pointermove',e=>{
     const a=screenToWorld(lastX,lastY),b=screenToWorld(e.clientX,e.clientY);
     cam.cx+=a.x-b.x;cam.cy+=a.y-b.y;lastX=e.clientX;lastY=e.clientY;
     camTarget=null;                    // the hand interrupts any camera flight
+    clampPickerCam();
   }
   if(HELM&&helmPhase==='select'&&!dragMode){        // picker: highlight the port under the pointer
     pickHover=hitPort(e.clientX,e.clientY);
@@ -1668,9 +1694,10 @@ canvas.addEventListener('wheel',e=>{
   if(story||bTarget===1)return;        // no zoom during the story or from the boat
   camTarget=null;                      // the hand interrupts any camera flight
   const before=screenToWorld(e.clientX,e.clientY);
-  cam.zoom=clamp(cam.zoom*(e.deltaY<0?CFG.zoomStep:1/CFG.zoomStep),MINZOOM,CFG.maxZoom);
+  cam.zoom=clamp(cam.zoom*(e.deltaY<0?CFG.zoomStep:1/CFG.zoomStep),minZoomNow(),CFG.maxZoom);
   const after=screenToWorld(e.clientX,e.clientY);
   cam.cx+=before.x-after.x;cam.cy+=before.y-after.y;
+  clampPickerCam();
 },{passive:false});
 
 // ---------- loop ----------

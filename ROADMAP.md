@@ -30,9 +30,10 @@
       framed on the Carolines and zooms out to the settlement landfalls, so one map carries a
       half-day inter-island run and a three-week migration crossing (`HELM_PORTS` merges both
       gazetteers). Forced the helm clock onto sky time rather than voyage fraction — see
-      `CFG.helmSkyRate`. Still open: at minimum zoom the east-up chart maps 182° of longitude to
-      screen *height*, so the ocean overflows vertically and Tahiti, Hawaii, the Marquesas and
-      Rapa Nui need a pan east before they can be picked
+      `CFG.helmSkyRate`. The whole gazetteer is reachable: east-up maps longitude to screen
+      *height*, so the chart's own cover-fit zoom floor left Tahiti, Hawaii, the Marquesas and
+      Rapa Nui off the top — the picker now has its own floor that holds every port, and a camera
+      bounded to the pick list so zooming out centres them instead of drifting into blank ocean
 
 
 ## Second act — from simulator to game
