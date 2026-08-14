@@ -85,12 +85,58 @@ Three **modes**:
   1969 arc is a coda drawn only on the final era. Frames/readout/story-link are hidden; entry
   always opens on beat 0, the whole ocean.
 
+## Helm mode
+
+`const HELM = true` at the top of `app.js` is the current default entry: a stripped shell over
+the machinery above, showing the boat and almost nothing else. Set it to `false` and everything
+below reverts exactly — the full interface, the story on first visit, PUZZLE as the entry mode.
+
+Nothing is removed to achieve this. `setMode('puzzle')` still runs at boot, every panel stays in
+the DOM with its handlers live, and `enterHelm` only adds `helm` to `<body>`; `body.helm` in
+`styles.css` hides the header, mode switch, frame picker, chooser, readout, new-voyage and birds
+buttons, departure picker, and the scrubber, leaving the bar's play and speed. `body.helm.picking`
+hides the bar too. Reintegration is a matter of choosing what to show again.
+
+`helmPhase` runs `'select'` → `'sail'`:
+
+- **select** — the voyage picker (`drawHelmPicker`), a chart branch in `draw()` alongside story
+  and settlement. `HELM_PORTS` merges both gazetteers into one pick list; four names are in both
+  (Puluwat, Lamotrek, Chuuk, Saipan) and `ETAK_ISLANDS` wins, its coordinates being the
+  navigation ones. Caroline labels gate on `CFG.portZoom` since the cluster collides at ocean
+  scale. `fitPorts` takes its zoom from the bounding box but its centre from the centroid —
+  Saipan sits 8° north of the chain and centring the box shoves the dense cluster into a corner.
+  Click home, then destination: the hovered leg previews with distance and duration, and the
+  second click calls `startHelmVoyage`, which sets `A`/`B` (`C` stays null — no reference island
+  in helm) and eases `b` toward the horizon.
+- **sail** — the boat view plus `drawMiniMap`, a corner disc filling the same world-space
+  `landPath` the chart does, through a `viewParams`-shaped object so `applyTransform` and
+  `worldToScreen` apply unchanged. It carries the leg (dashed ahead, solid behind), the canoe,
+  gazetteer marks for atolls too small to render at that scale, and a wedge for `CFG.fov` swung
+  by `look`. Clicking it reopens the picker — the way back, without another button.
+
+Two behaviours differ from the rest of the app, both because helm has no scrubber and no landfall
+scoring to anchor to:
+
+- **Sky time, not voyage fraction, is the clock.** `CFG.helmSkyRate` advances the sun and stars a
+  fixed 0.75 h per real second at speed 1, so `t` moves at `helmSkyRate / legHours`. Helm legs run
+  from 60nm to 4600nm; at a fixed fraction-per-second a three-week crossing would spin 36 days of
+  sky through the same 33 seconds a day-long one gets.
+- **Landfall stops the canoe, not the clock.** `afterHours` accumulates sailing time logged past
+  `t = 1` and feeds `voyageMs`, so the sky keeps turning at the same rate instead of freezing.
+  It resets with the voyage. Elsewhere `t >= 1` still stops playback, where the scrubber, the
+  readout and the blind-passage scoring all depend on it.
+
+The passage's candidate reference islands are not caret-drawn on the boat horizon under HELM:
+they belong to whichever `ETAK_PASSAGES` entry was loaded at boot, and helm picks its own leg, so
+sailing Taiwan→Aotearoa would otherwise draw three Caroline atolls 4000nm away.
+
 A **story mode** overlays any of them: a six-beat walkthrough of the settlement of the Pacific
 (`ETAK_STORY`; chronology sourced in `docs/sources.md` §4). While `story` is set, `draw()` swaps
 the voyage layers for great-circle migration arcs (`drawArcs`/`drawArcLabels`, shared with
 SETTLEMENT mode, which drives them from its own `settle` state) and `loop()` eases the camera
 toward `camTarget`. Autoplays on first visit (localStorage `etakStorySeen`), replays from the
-header button, exits via SKIP/ESC or the final SAIL hand-off into the puzzle.
+header button, exits via SKIP/ESC or the final SAIL hand-off into the puzzle. Skipped entirely
+under HELM, which boots to its own picker instead.
 
 `A`, `B`, `C` are `{lat,lon,name}` points. All navigation math is spherical (great-circle), so
 bearings and etaks are correct regardless of the render projection.

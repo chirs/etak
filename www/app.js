@@ -80,6 +80,8 @@ const CFG={
   miniR:78,                     // helm minimap: disc radius, screen px
   miniPad:24,                   // helm minimap: inset from the top-right corner, screen px
   miniFit:0.66,                 // helm minimap: leg framed into this fraction of the diameter
+  miniMaxFrac:0.2,              // helm minimap: largest fraction of the viewport the disc may take
+  miniFovReach:0.85,            // helm minimap: field-of-view wedge reach, fraction of the radius
   helmSkyRate:0.75,             // helm: sky hours per real second at speed 1 — leg-length independent,
                                 // so Puluwat->Chuuk still runs ~33s and a migration leg takes longer
   portHitR:16,                  // helm picker: island click hit radius, screen px
@@ -347,7 +349,7 @@ function drawCoast(v){
 const miniAngle=deg=>deg*Math.PI/180+Math.PI;
 // disc geometry in one place, so the hit test and the drawing cannot drift apart
 const miniDisc=()=>{
-  const R=Math.min(CFG.miniR,W*0.2,H*0.2);   // never let the disc dominate a small viewport
+  const R=Math.min(CFG.miniR,W*CFG.miniMaxFrac,H*CFG.miniMaxFrac);   // never dominate a small viewport
   return {R,mx:W-CFG.miniPad-R,my:CFG.miniPad+R};
 };
 const overMiniMap=(x,y)=>{const d=miniDisc();return Math.hypot(x-d.mx,y-d.my)<=d.R;};
@@ -395,10 +397,11 @@ function drawMiniMap(cn){
   // the field of view, swung by the gaze — what the horizon in front of you covers
   const gaze=gcBearing(cn,B)+look;
   const g0=miniAngle(gaze-CFG.fov/2),g1=miniAngle(gaze+CFG.fov/2);
-  const gr=ctx.createRadialGradient(sP.x,sP.y,0,sP.x,sP.y,R*0.85);
+  const reach=R*CFG.miniFovReach;
+  const gr=ctx.createRadialGradient(sP.x,sP.y,0,sP.x,sP.y,reach);
   gr.addColorStop(0,hexA(PAL.starlight,0.12));gr.addColorStop(1,hexA(PAL.starlight,0));
   ctx.fillStyle=gr;
-  ctx.beginPath();ctx.moveTo(sP.x,sP.y);ctx.arc(sP.x,sP.y,R*0.85,g0,g1);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(sP.x,sP.y);ctx.arc(sP.x,sP.y,reach,g0,g1);ctx.closePath();ctx.fill();
 
   ctx.restore();   // unclip
 

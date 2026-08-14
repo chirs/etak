@@ -8,7 +8,11 @@
 ## Intermezzo
 
 - [x] Reduce maximum zoom out to full screen
-- [ ] UI redesign - unify, less messy
+- [~] UI redesign - unify, less messy — **stripped, not yet unified.** `HELM` in `app.js` boots
+      straight to the boat with everything hidden but play and speed, so the interface is now a
+      deliberate near-blank to rebuild from rather than a pile to tidy. Every mode, frame and
+      panel is intact behind the flag (`HELM = false` restores it all); what remains is deciding
+      what earns its way back on screen, and in what order
 - [x] Clickable star labels (info? distance? names?)
 - [ ] Constellations
 - [ ] **Authentic canoe** — reshape the boat-view hull silhouette to match the real Carolinian
@@ -20,7 +24,13 @@
       it's wind-ready. Still to do: measured construction plates (Haddon & Hornell — see §6) and
       the reshape itself.
 - [x] Make ocean prettier - mesh, pseudo-waves
-- [ ] Voyage picker!
+- [x] **Voyage picker!** — a chart before the boat: click home, click destination, sail it. Opens
+      framed on the Carolines and zooms out to the settlement landfalls, so one map carries a
+      half-day inter-island run and a three-week migration crossing (`HELM_PORTS` merges both
+      gazetteers). Forced the helm clock onto sky time rather than voyage fraction — see
+      `CFG.helmSkyRate`. Still open: at minimum zoom the east-up chart maps 182° of longitude to
+      screen *height*, so the ocean overflows vertically and Tahiti, Hawaii, the Marquesas and
+      Rapa Nui need a pan east before they can be picked
 
 
 ## Second act — from simulator to game
