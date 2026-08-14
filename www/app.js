@@ -484,14 +484,31 @@ let helmPhase='select';    // 'select' = the picker chart, 'sail' = the boat
 let pickFrom=null;         // first island clicked, awaiting a destination
 let pickHover=null;        // port under the pointer, for the preview leg
 
+// The name beside a port is part of its target. At ocean scale an atoll is a 2px
+// dot and the label is what the eye is actually aiming at, so the drawn text box
+// counts as a hit — measured from the same font the label is drawn in, cached per
+// name since neither the string nor the size changes.
+const PORT_FONT='10px "IBM Plex Mono",monospace', PORT_LBL_DX=8;
+const portLblW=new Map();
+function portLabelBox(p,s){
+  let w=portLblW.get(p.name);
+  if(w==null){ctx.font=PORT_FONT;w=ctx.measureText(p.name).width;portLblW.set(p.name,w);}
+  return {x0:s.x+PORT_LBL_DX-2,x1:s.x+PORT_LBL_DX+w+2,y0:s.y-6,y1:s.y+7};
+}
+
 function hitPort(sx,sy){
-  const v=viewParams();let best=null,bd=CFG.portHitR;
+  const v=viewParams(),showNear=v.Z>=CFG.portZoom;   // labels hidden ⇒ not hittable
+  let best=null,bd=CFG.portHitR,label=null;
   for(const p of HELM_PORTS){
     const s=worldToScreen(project(p),v);
     const d=Math.hypot(s.x-sx,s.y-sy);
     if(d<bd){bd=d;best=p;}
+    if(!label&&(showNear||!p.near)){
+      const b=portLabelBox(p,s);
+      if(sx>=b.x0&&sx<=b.x1&&sy>=b.y0&&sy<=b.y1)label=p;
+    }
   }
-  return best;
+  return best||label;      // the dot wins where dot and a neighbour's name overlap
 }
 
 function drawPickerPrompt(){
@@ -523,9 +540,9 @@ function drawHelmPicker(v){
     const r=p.near?(showNear?3.5:2):4;
     drawMarker(s,hov?PAL.amber:PAL.island,hov?hexA(PAL.amber,0.5):null,hov?r+1.5:r);
     if(showNear||!p.near){
-      ctx.font='10px "IBM Plex Mono",monospace';
+      ctx.font=PORT_FONT;
       ctx.fillStyle=hov?PAL.starlight:hexA(PAL.dim,0.85);
-      ctx.fillText(p.name,s.x+8,s.y+3);
+      ctx.fillText(p.name,s.x+PORT_LBL_DX,s.y+3);
     }
   }
   if(pickFrom){
@@ -536,8 +553,8 @@ function drawHelmPicker(v){
       ctx.beginPath();ctx.moveTo(sF.x,sF.y);ctx.lineTo(sH.x,sH.y);ctx.stroke();ctx.setLineDash([]);
     }
     drawMarker(sF,PAL.amber,hexA(PAL.amber,0.55),5);
-    ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='left';
-    ctx.fillStyle=PAL.starlight;ctx.fillText(pickFrom.name,sF.x+9,sF.y+3);
+    ctx.font=PORT_FONT;ctx.textAlign='left';
+    ctx.fillStyle=PAL.starlight;ctx.fillText(pickFrom.name,sF.x+PORT_LBL_DX,sF.y+3);
   }
   drawPickerPrompt();
 }
