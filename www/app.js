@@ -170,7 +170,7 @@ function makePuzzle(){
   passageSub();
   buildChooserUI();
   fitLeg();
-  t=0;scrub.value=0;setPlaying(false);
+  t=0;afterHours=0;scrub.value=0;setPlaying(false);
 }
 
 function applyChoice(i){
@@ -182,7 +182,7 @@ function applyChoice(i){
   if(firstPick)buildChooserUI();        // rebuild with all four scores revealed
   [...chooserEl.querySelectorAll('button:not(#sailBtn)')].forEach((b,k)=>b.classList.toggle('chosen',k===i));
   updateScorePanel();                   // re-seat the detail under the (possibly rebuilt) button
-  t=0;scrub.value=0;setPlaying(false);
+  t=0;afterHours=0;scrub.value=0;setPlaying(false);
 }
 
 // ---------- sandbox ----------
@@ -196,7 +196,7 @@ function makeSandbox(){
   C={lat:mid.lat+1.1, lon:mid.lon+0.15, name:'REFERENCE'};
   recompute();
   fitLeg();
-  t=0;scrub.value=0;setPlaying(false);
+  t=0;afterHours=0;scrub.value=0;setPlaying(false);
 }
 
 // ---------- sim state ----------
@@ -207,7 +207,8 @@ let pitch=0;               // boat-view gaze tilt, degrees above dead-ahead (0 =
 let starHits=[];           // boat view: compass stars' screen spots, refreshed each frame
 let starPick=null;         // boat view: the compass star whose card is open
 let DEPART_MS=Date.parse(CFG.depart);             // adjustable via the departure picker (boat view)
-const voyageMs=()=>DEPART_MS+t*legHours*3600e3;   // real clock time at voyage fraction t
+let afterHours=0;          // sailing hours logged after landfall — helm mode keeps the sky turning
+const voyageMs=()=>DEPART_MS+(t*legHours+afterHours)*3600e3;   // real clock time at voyage fraction t
 let mode='puzzle';
 
 // ---------- view transform (single source; screenToWorld/worldToScreen invert it) ----------
@@ -959,7 +960,7 @@ playBtn.addEventListener('click',()=>{
     setTlPlaying(!settle.playing);
     return;
   }
-  if(!playing&&t>=1)t=0;setPlaying(!playing);
+  if(!playing&&t>=1){t=0;afterHours=0;}setPlaying(!playing);
 });
 scrub.addEventListener('input',()=>{
   if(mode==='settlement'){setYear(TL.min+ +scrub.value*(TL.max-TL.min));setTlPlaying(false);return;}
@@ -1095,7 +1096,7 @@ function storyShowBeat(){
   storyNext.textContent=story.beat===ETAK_STORY.length-1?'SAIL ⟶':'NEXT ⟶';
 }
 function startStory(){
-  setPlaying(false);fTarget=0;bTarget=0;t=0;scrub.value=0;hideStarCard();
+  setPlaying(false);fTarget=0;bTarget=0;t=0;afterHours=0;scrub.value=0;hideStarCard();
   story={beat:0,tBeat:0};
   storyChrome.forEach(el=>el.classList.add('hidden'));
   chooserEl.classList.add('hidden');newBtn.classList.add('hidden');departWrap.classList.add('hidden');
@@ -1205,7 +1206,7 @@ function startBlind(i){
   blindChrome.forEach(el=>el.classList.add('hidden'));
   departWrap.classList.add('hidden');
   subEl.textContent='Watch the reference sweep the horizon — the navigator will ask where you are. ESC abandons.';
-  t=0;scrub.value=0;bTarget=1;look=0;pitch=0;
+  t=0;afterHours=0;scrub.value=0;bTarget=1;look=0;pitch=0;
   setPlaying(true);
 }
 function askBlind(){
@@ -1344,7 +1345,18 @@ canvas.addEventListener('wheel',e=>{
 let last=performance.now();
 function loop(now){
   const dt=Math.min((now-last)/1000,0.05);last=now;
-  if(playing){t+=dt*CFG.playRate*speedMul;if(t>=1){t=1;setPlaying(false);}scrub.value=t;}
+  if(playing){
+    t+=dt*CFG.playRate*speedMul;
+    if(t>=1){
+      const over=t-1;   // the slice of this frame that falls past landfall
+      t=1;
+      // Landfall stops the canoe but not the clock: in helm mode the sky rolls on at
+      // the same rate, so the sun and stars keep their pace instead of freezing.
+      if(HELM)afterHours+=over*legHours;
+      else setPlaying(false);
+    }
+    scrub.value=t;
+  }
   if(blind){
     if(playing&&blind.qi<blind.qs.length&&t>=blind.qs[blind.qi])askBlind();
     else if(t>=1&&!blind.done){blind.done=true;blindLandfall();}
