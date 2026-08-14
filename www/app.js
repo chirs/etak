@@ -77,6 +77,9 @@ const CFG={
   isleH:9,                      // boat view: island silhouette max height above the horizon, px
   driftMax:0.12,                // blind passage: max current, fraction of boat speed (C3: forgiving)
   dayWash:0.5,                  // boat view: max daytime sky-wash alpha
+  miniR:78,                     // helm minimap: disc radius, screen px
+  miniPad:24,                   // helm minimap: inset from the top-right corner, screen px
+  miniFit:0.66,                 // helm minimap: leg framed into this fraction of the diameter
 };
 
 // ---------- projection (rendering only; navigation math stays spherical) ----------
@@ -326,6 +329,82 @@ function drawOcean(v){
 function drawCoast(v){
   ctx.fillStyle=PAL.land;ctx.fill(landPath);
   ctx.strokeStyle=PAL.coast;ctx.lineWidth=0.6/v.Z;ctx.lineJoin='round';ctx.stroke(landPath);
+}
+
+// ---------- helm minimap ----------
+// Helm mode has no chart frame to switch to, so this disc is the only "where am I"
+// there is: the same coastlines the chart draws (landPath, world coords), the leg,
+// and the canoe on it. East-up like every other view here, so north reads to the
+// left and the horizon you are facing is the wedge off the canoe.
+// Bearings are measured from north clockwise; east-up puts north at screen (-1,0)
+// and east at (0,-1), so a bearing θ points along screen angle θ+π.
+const miniAngle=deg=>deg*Math.PI/180+Math.PI;
+function drawMiniMap(cn){
+  if(!A||!B)return;
+  const R=Math.min(CFG.miniR,W*0.2,H*0.2);   // never let the disc dominate a small viewport
+  const mx=W-CFG.miniPad-R, my=CFG.miniPad+R;
+  const pts=[project(A),project(B),project(cn)];
+  if(C)pts.push(project(C));
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const span=Math.max(maxx-minx,maxy-miny,0.6);
+  // a viewParams-shaped object, so worldToScreen/applyTransform work unchanged
+  const v={fe:1,rot:-Math.PI/2,Z:2*R*CFG.miniFit/span,cx:mx,cy:my,
+           O:{x:(minx+maxx)/2,y:(miny+maxy)/2},P:project(cn)};
+
+  ctx.save();
+  ctx.beginPath();ctx.arc(mx,my,R,0,7);
+  ctx.fillStyle=hexA(PAL.night2,0.86);ctx.fill();
+  ctx.save();ctx.clip();
+
+  ctx.save();applyTransform(v);
+  // brighter than the chart's --land: at this scale it sits on a starfield, not a
+  // full viewport of ocean, and the chart tone is nearly the disc's own colour
+  ctx.fillStyle=PAL.island;ctx.fill(landPath);
+  ctx.strokeStyle=PAL.coast;ctx.lineWidth=0.9/v.Z;ctx.lineJoin='round';ctx.stroke(landPath);
+  ctx.restore();
+
+  // the atolls are a pixel or two across here, so the gazetteer carries them —
+  // without this the Carolines read as empty ocean between home and destination
+  for(const k in ETAK_ISLANDS){
+    const I=ETAK_ISLANDS[k];
+    if(I.name===A.name||I.name===B.name)continue;
+    const s=worldToScreen(project(I),v);
+    if(Math.hypot(s.x-mx,s.y-my)>R-3)continue;
+    drawMarker(s,hexA(PAL.faint,0.75),null,1.6);
+  }
+
+  const sA=worldToScreen(project(A),v),sB=worldToScreen(project(B),v),sP=worldToScreen(project(cn),v);
+  ctx.strokeStyle=hexA(PAL.course,0.7);ctx.lineWidth=1;ctx.setLineDash([4,5]);
+  ctx.beginPath();ctx.moveTo(sA.x,sA.y);ctx.lineTo(sB.x,sB.y);ctx.stroke();ctx.setLineDash([]);
+  // sailed portion, solid over the dashes
+  ctx.strokeStyle=hexA(PAL.amber,0.75);ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.moveTo(sA.x,sA.y);ctx.lineTo(sP.x,sP.y);ctx.stroke();
+
+  // the field of view, swung by the gaze — what the horizon in front of you covers
+  const gaze=gcBearing(cn,B)+look;
+  const g0=miniAngle(gaze-CFG.fov/2),g1=miniAngle(gaze+CFG.fov/2);
+  const gr=ctx.createRadialGradient(sP.x,sP.y,0,sP.x,sP.y,R*0.85);
+  gr.addColorStop(0,hexA(PAL.starlight,0.22));gr.addColorStop(1,hexA(PAL.starlight,0));
+  ctx.fillStyle=gr;
+  ctx.beginPath();ctx.moveTo(sP.x,sP.y);ctx.arc(sP.x,sP.y,R*0.85,g0,g1);ctx.closePath();ctx.fill();
+
+  ctx.restore();   // unclip
+
+  drawMarker(sA,PAL.dim,null,2.2);
+  drawMarker(sB,PAL.teal,hexA(PAL.teal,0.5),2.8);
+  drawMarker(sP,PAL.starlight,hexA(PAL.amber,0.55),3);
+
+  ctx.font='8.5px "IBM Plex Mono",monospace';ctx.textAlign='center';
+  ctx.fillStyle=PAL.faint;ctx.fillText(B.name.toUpperCase(),sB.x,sB.y-8);
+  ctx.fillStyle=PAL.dim;ctx.fillText(A.name.toUpperCase(),sA.x,sA.y+15);
+
+  ctx.beginPath();ctx.arc(mx,my,R,0,7);
+  ctx.strokeStyle=hexA(PAL.roseRing,0.85);ctx.lineWidth=1;ctx.stroke();
+  // N at the rim, so east-up does not read as a mistake
+  ctx.fillStyle=PAL.dim;ctx.font='9px "IBM Plex Mono",monospace';
+  ctx.fillText('N',mx-R+9,my+3);
+  ctx.restore();
 }
 
 // "etak of birds" range rings around home + destination (seabird feeding range)
@@ -872,7 +951,9 @@ function draw(){
     ctx.fillStyle=hexA(PAL.night,Math.min(1,be*2));
     ctx.fillRect(0,0,W,H);
     const ba=Math.max(0,be*2-1);
-    if(ba>0){ctx.save();ctx.globalAlpha=ba;drawBoatView(cn,refDeg,cur);ctx.restore();}
+    if(ba>0){ctx.save();ctx.globalAlpha=ba;drawBoatView(cn,refDeg,cur);
+      if(HELM)drawMiniMap(cn);   // helm only: the other frames have a real chart
+      ctx.restore();}
   }
   updateReadout(refDeg);
 }
