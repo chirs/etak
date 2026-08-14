@@ -53,8 +53,12 @@ third state faded through night by `b` (different projection — no blend possib
   canvas or use the arrow keys; both reset on boarding). Star houses tick along the horizon line,
   the reference island's caret sliding across them (one etak = one house). The hull silhouette
   anchors to the *heading* azimuth — it leaves the frame when you look abeam — and occludes the
-  swell. (It's a placeholder yacht bow; `docs/canoe.md` + `docs/refs/canoe-images/` hold the
-  real-proa reference for the "Authentic canoe" roadmap item.) The sky is the real one
+  swell. The vessel is a Carolinian proa (`docs/canoe.md`): upswept endpiece, crab-claw sail on
+  two splayed spars, and an outrigger float to windward on arching booms. Each part is a point in
+  **metres from the eye** (x forward along the heading, y to starboard, z up) turned into
+  azimuth/altitude, so it projects through the same frame as the sky — the `CFG` values are real
+  dimensions, and the eye sits aft rather than amidships because this projection cannot draw
+  geometry that wraps behind the viewer. The sky is the real one
   (`STAR_MAP` + `EtakCore.altAz`), rotating with sailing time (`t · legNm / CFG.canoeKn` hours
   from `CFG.depart`, adjustable while aboard via the departure picker); the current house's
   physical star glows amber. The sky is also **day-aware**: the sun (validated `sunPos`

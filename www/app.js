@@ -50,7 +50,27 @@ const CFG={
                                 // chosen so Altair sits just-risen at t=0 on Puluwat→Chuuk
   fov:110,                      // boat view: horizontal field of view, degrees
   horizonUp:170,                // boat view: horizon height, px above the viewport bottom (clears the readout)
-  bowW:0.16, bowH:0.14,         // boat view: bow half-width / height, fractions of W and H
+  helmHorizonUp:300,            // helm: higher horizon — no readout to clear, and the canoe in the
+                                // foreground needs sea to sit on (the float rides ~19° below the eye)
+  // ---- the canoe: a Carolinian single-outrigger proa (docs/canoe.md) ----
+  // Metres from the eye, which sits on the lee platform amidships. x forward along
+  // the heading, y to starboard, z up. Projected through the same azimuth/altitude
+  // frame as the sky, so the rig holds its place as the gaze swings.
+  hullLen:7.5,                  // hull length, m — outer-island voyaging canoe (canoe.md §2)
+  eyeFromBow:7.0,               // eye to the bow endpiece, m. The platform sits aft rather than
+                                // amidships so the whole rig is forward of the eye: this view is
+                                // cylindrical in azimuth and cannot draw geometry that wraps
+                                // behind the viewer, and amidships puts half the sail astern.
+  hullBeam:0.95,                // hull beam, m
+  gunwale:-0.55,                // gunwale relative to the eye, m (eye ~1.2 m over the water)
+  endRise:1.3,                  // upswept endpiece above the gunwale, m — the profile cue (§2)
+  akaOut:3.2,                   // outrigger float offset to windward, m (§3)
+  floatLen:5.0,                 // outrigger float length, m
+  floatZ:-1.15,                 // float relative to the eye, m — it rides on the water
+  yardTop:3.2,                  // crab-claw yard tip above the eye, m (§4)
+  windDeg:60,                   // prevailing NE trades: sets the windward side (§4, no wind model yet)
+  sailCloth:0.07,               // sail cloth alpha — low, so the real sky reads through the matting
+  sailSpar:0.45,                // spar + leech alpha — higher, so the claw stays legible
   seaVanish:1.15,               // boat view: sea-grid vanishing point depth, fraction of H
   milkyN:4500,                  // boat view: milky-way dust points, scattered once at load
   lookStep:10,                  // boat view: gaze swing per arrow-key press, degrees
@@ -789,7 +809,7 @@ function drawBoatView(cn,refDeg,cur){
   const inView=rel=>Math.abs(rel)<CFG.fov/2+8;
   const pxDeg=W/CFG.fov;                            // px per degree, both axes
   const azX=az=>W/2+relAz(az)*pxDeg;
-  const hy=Math.max(H*0.5,H-CFG.horizonUp)+pitch*pxDeg;
+  const hy=Math.max(H*0.5,H-(HELM?CFG.helmHorizonUp:CFG.horizonUp))+pitch*pxDeg;
   ctx.lineWidth=1;
 
   // ---- the sun: day, twilight, and star visibility derive from its altitude ----
@@ -1017,17 +1037,101 @@ function drawBoatView(cn,refDeg,cur){
     caret(x,PAL.amber);name(x,hy+24,C.name,PAL.amber);
   }
 
-  // bow: a solid hull silhouette under the wireframe curves, anchored at the
-  // heading azimuth — it's part of the boat, so it slides out of frame when you
-  // look abeam. The fill occludes the swell: no water through the prow.
+  // ---- the canoe (docs/canoe.md) ----
+  // A Carolinian proa, not a yacht: double-ended hull with upswept endpieces, one
+  // outrigger float carried to windward, and an Oceanic-lateen crab-claw sail.
+  // Every part is a point in metres from the eye, turned into this view's own
+  // azimuth/altitude frame — so the whole vessel holds still relative to the boat
+  // and slides correctly through the frame as the gaze swings.
+  const R2D=180/Math.PI;
+  const rig=(x,y,z)=>({
+    x:azX(hdg+Math.atan2(y,x)*R2D),
+    y:hy-Math.atan2(z,Math.hypot(x,y))*R2D*pxDeg,
+    rel:relAz(hdg+Math.atan2(y,x)*R2D),
+  });
+  // The float rides to windward. There is no wind model yet, so the prevailing NE
+  // trades stand in — the side is then correct, and the code is wind-ready.
+  const ws=(((CFG.windDeg-hdg+540)%360)-180)>=0?1:-1;   // +1 = float to starboard
+  const lee=-ws;                                        // sail sets to leeward
+  const yc=-lee*0.15;                   // hull centreline: the eye sits just lee of it
+  const fwd=CFG.eyeFromBow, hb=CFG.hullBeam/2, g=CFG.gunwale;
+
+  // outrigger: forward and off to windward, filling the frame as the gaze swings
+  const fy=yc+ws*CFG.akaOut, fc=fwd*0.46, fl=CFG.floatLen/2;
+  const fA=rig(fc+fl,fy,CFG.floatZ), fB=rig(fc-fl,fy,CFG.floatZ);
+  if(Math.abs(fA.rel)<CFG.fov||Math.abs(fB.rel)<CFG.fov){
+    ctx.save();
+    ctx.strokeStyle=hexA(PAL.starlight,0.3);ctx.lineWidth=1.2;
+    for(const bx of [fwd*0.3,fwd*0.62]){                // two booms, arching out and down
+      const gun=rig(bx,yc+ws*hb,g), end=rig(bx,fy,CFG.floatZ+0.3);
+      const mid=rig(bx,(yc+ws*hb+fy)/2,g+0.15);         // the arch
+      ctx.beginPath();ctx.moveTo(gun.x,gun.y);
+      ctx.quadraticCurveTo(mid.x,mid.y,end.x,end.y);ctx.stroke();
+      // stanchion struts: the boom meets the log through a little cluster (§3)
+      for(const d of [-0.4,0,0.4]){
+        const s0=rig(bx+d*0.5,fy,CFG.floatZ+0.3), s1=rig(bx+d,fy,CFG.floatZ);
+        ctx.beginPath();ctx.moveTo(s0.x,s0.y);ctx.lineTo(s1.x,s1.y);ctx.stroke();
+      }
+    }
+    const fT=rig(fc+fl*0.5,fy,CFG.floatZ+0.2), fU=rig(fc-fl*0.5,fy,CFG.floatZ+0.2);
+    const flt=new Path2D();                             // a log, pointed at both ends
+    flt.moveTo(fA.x,fA.y);
+    flt.quadraticCurveTo(fT.x,fT.y,(fA.x+fB.x)/2,(fT.y+fU.y)/2);
+    flt.quadraticCurveTo(fU.x,fU.y,fB.x,fB.y);
+    flt.quadraticCurveTo((fA.x+fB.x)/2,(fA.y+fB.y)/2+5,fA.x,fA.y);
+    ctx.fillStyle=PAL.night;ctx.fill(flt);
+    ctx.strokeStyle=hexA(PAL.starlight,0.4);ctx.lineWidth=1.4;ctx.stroke(flt);
+    ctx.restore();
+  }
+
   if(inView(relAz(hdg))){
-    const bx=azX(hdg), bw=W*CFG.bowW, bh=H*CFG.bowH, by=H+pitch*pxDeg;
+    // crab-claw sail: two spars splaying from a low tack at the bow, the leech
+    // curving between their tips. Cloth kept sheer so the sky reads through it;
+    // spars and leech carry the shape (canoe.md §4, and the decision in §5).
+    const T=rig(fwd*0.92,yc,g+0.25);                    // tack, footed at the bow end
+    const Y=rig(fwd*0.55,yc+lee*0.55,CFG.yardTop);      // yard tip: high and aft
+    const Bm=rig(fwd*0.34,yc+lee*1.35,g+1.2);           // boom tip: aft and outboard
+    const mx=(Y.x+Bm.x)/2, my=(Y.y+Bm.y)/2;
+    const lx=mx+(mx-T.x)*0.2, ly=my+(my-T.y)*0.2;       // leech bows away from the tack
+    const sail=new Path2D();
+    sail.moveTo(T.x,T.y);sail.lineTo(Y.x,Y.y);
+    sail.quadraticCurveTo(lx,ly,Bm.x,Bm.y);sail.closePath();
+    ctx.fillStyle=hexA(PAL.starlight,CFG.sailCloth);ctx.fill(sail);
+    ctx.strokeStyle=hexA(PAL.starlight,CFG.sailSpar);ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(T.x,T.y);ctx.lineTo(Y.x,Y.y);ctx.stroke();   // yard
+    ctx.beginPath();ctx.moveTo(T.x,T.y);ctx.lineTo(Bm.x,Bm.y);ctx.stroke(); // boom
+    ctx.lineWidth=1.3;ctx.strokeStyle=hexA(PAL.starlight,CFG.sailSpar*0.75);
+    ctx.beginPath();ctx.moveTo(Y.x,Y.y);ctx.quadraticCurveTo(lx,ly,Bm.x,Bm.y);ctx.stroke();
+
+    // hull: the deck we are sitting in, running forward to the bow. Opaque, so no
+    // water shows through it, and it closes off the bottom of the frame.
+    const by=H+pitch*pxDeg;
+    const pL=rig(1.25,yc-hb,g), pR=rig(1.25,yc+hb,g);
+    const mL=rig(fwd*0.55,yc-hb*0.85,g), mR=rig(fwd*0.55,yc+hb*0.85,g);
+    const bow=rig(fwd,yc,g);
     const hull=new Path2D();
-    hull.moveTo(bx-bw,by+2);
-    hull.quadraticCurveTo(bx-bw*0.35,by-bh*0.55,bx,by-bh);
-    hull.quadraticCurveTo(bx+bw*0.35,by-bh*0.55,bx+bw,by+2);
+    hull.moveTo(pL.x,by);hull.lineTo(pL.x,pL.y);
+    hull.quadraticCurveTo(mL.x,mL.y,bow.x,bow.y);
+    hull.quadraticCurveTo(mR.x,mR.y,pR.x,pR.y);
+    hull.lineTo(pR.x,by);hull.closePath();
     ctx.fillStyle=PAL.night;ctx.fill(hull);
-    ctx.strokeStyle=hexA(PAL.starlight,0.35);ctx.lineWidth=1.5;ctx.stroke(hull);
+    ctx.strokeStyle=hexA(PAL.starlight,0.45);ctx.lineWidth=1.5;ctx.stroke(hull);
+
+    // the upswept endpiece — the single most recognisable cue in profile (§2).
+    // It rises from the bow and hooks back over the hull; not a smooth bump.
+    const eb=0.2, et=0.012, tipX=fwd-1.0;
+    const bL=rig(fwd,yc-eb,g), bR=rig(fwd,yc+eb,g);
+    const tL=rig(tipX,yc-et,g+CFG.endRise), tR=rig(tipX,yc+et,g+CFG.endRise);
+    const kL=rig(fwd+0.05,yc-eb*0.55,g+CFG.endRise*0.5);  // leading edge bellies forward
+    const kR=rig(fwd+0.05,yc+eb*0.55,g+CFG.endRise*0.5);
+    const end=new Path2D();
+    end.moveTo(bL.x,bL.y);
+    end.quadraticCurveTo(kL.x,kL.y,tL.x,tL.y);
+    end.lineTo(tR.x,tR.y);
+    end.quadraticCurveTo(kR.x,kR.y,bR.x,bR.y);
+    end.closePath();
+    ctx.fillStyle=PAL.night;ctx.fill(end);
+    ctx.strokeStyle=hexA(PAL.starlight,0.45);ctx.lineWidth=1.4;ctx.stroke(end);
   }
 }
 

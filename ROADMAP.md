@@ -15,14 +15,16 @@
       what earns its way back on screen, and in what order
 - [x] Clickable star labels (info? distance? names?)
 - [ ] Constellations
-- [ ] **Authentic canoe** — reshape the boat-view hull silhouette to match the real Carolinian
-      proa (single outrigger, crab-claw sail, double-ended shunting hull) instead of the generic
-      yacht bow. Form reference written up in `docs/canoe.md` (hull, outrigger, rig, plus a
-      silhouette cheat-sheet for `drawBoatView`) and a starter set of PD/CC reference images in
-      `docs/refs/canoe-images/`. Decided: full rig, **semi-transparent sail** (crisp spars, sheer
-      cloth), outrigger on the **windward** side driven by a wind constant (~060° NE trades) so
-      it's wind-ready. Still to do: measured construction plates (Haddon & Hornell — see §6) and
-      the reshape itself.
+- [x] **Authentic canoe** — the generic yacht bow is gone; `drawBoatView` now carries the real
+      Carolinian proa: upswept endpiece, crab-claw sail on two splayed spars with a curved leech,
+      and the windward outrigger on arching booms with its stanchion cluster. Built to the decided
+      spec — full rig, sheer cloth with crisp spars, outrigger side off the ~060° trades. Every
+      part is a point in metres from the eye projected into the sky's own azimuth/altitude frame,
+      so the `CFG` numbers are real dimensions rather than screen fractions. Two notes recorded in
+      `docs/canoe.md`: the eye had to move aft of amidships (a cylindrical view cannot draw
+      geometry that wraps behind you), and the sail genuinely does obscure the view ahead at any
+      honest size. Still open: measured plates (Haddon & Hornell, §6) to trace the endpiece carving
+      and exact spar angles, which remain **[caution]** knowledge synthesis
 - [x] Make ocean prettier - mesh, pseudo-waves
 - [x] **Voyage picker!** — a chart before the boat: click home, click destination, sail it. Opens
       framed on the Carolines and zooms out to the settlement landfalls, so one map carries a

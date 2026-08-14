@@ -96,7 +96,8 @@ heading; `azX(az)` maps an azimuth to screen x). What the sitter on the lee plat
   prominent above the horizon when looking forward. *Caveat:* the boat view's whole point is the real
   sky, so a sail large enough to be authentic will occlude stars — hint it, or make it a thin outline,
   or gate it. This is the open design question for the reshape.
-- **Eye-point** — low, ~1–1.5 m above the water, on the lee platform amidships.
+- **Eye-point** — low, ~1–1.5 m above the water, on the lee platform. *Built aft rather than
+  amidships* — see the note below.
 
 **Decisions (resolved with the user, Jul 2026):**
 
@@ -108,6 +109,25 @@ heading; `azX(az)` maps an azimuth to screen x). What the sitter on the lee plat
   bearing even before there is a wind *model*: hardcode the prevailing **NE trades (~060°)** for
   now (also the authentic sailing-season wind for these passages), so the side is correct and the
   code is wind-ready. On a **shunt** the outrigger side and the sail set both flip to the far end.
+
+**Built (Aug 2026).** `drawBoatView` now carries all three: the upswept endpiece, the crab-claw
+sail, and the outrigger with arching booms and the strut cluster. Each part is a point in **metres
+from the eye** (x forward along the heading, y to starboard, z up) converted to azimuth/altitude,
+so the vessel projects through the same frame as the sky and holds its place as the gaze swings —
+the dimensions in §2–§4 are the actual `CFG` values, and correcting one corrects the picture.
+
+Two things the reshape settled, both forced rather than chosen:
+
+- **The eye sits aft, not amidships.** This view is cylindrical in azimuth and cannot draw a
+  polygon that wraps behind the viewer. With the eye amidships the yard and boom tips fall astern
+  of it, and the sail projects to ~145° off the bow — it renders as a wedge across the whole sky.
+  Moving the eye to the after platform (`CFG.eyeFromBow`) puts the whole rig forward. The float
+  then lies forward of the beam too, coming into view around 55° off rather than 90°.
+- **The sail really does block the forward view**, which is the §5 caveat resolved by measurement
+  rather than argument: a 3 m sail 3 m away subtends ~45°, and no honest placement avoids that.
+  Sheer cloth (`CFG.sailCloth`, 0.07) with the spars and leech carried at `CFG.sailSpar` keeps the
+  claw legible while the stars read straight through it. Worth noting this is not only a rendering
+  compromise — a rig that blocks ahead is part of why the reference island is watched *abeam*.
 
 **Wind is coming** (see ROADMAP → "steer by the stars"). Two levels, keep them separate: the
 *cosmetic* layer above (outrigger side, sail trim, shunt-flip) is cheap and makes the boat view
